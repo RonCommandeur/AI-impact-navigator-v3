@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Brain, Users, TrendingUp, Zap, ArrowRight, Sparkles } from 'lucide-react'
+import { Brain, Users, TrendingUp, Zap, ArrowRight, Sparkles, History } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Footer } from '@/components/footer'
@@ -34,6 +34,9 @@ export default function Home() {
           <div className="hidden md:flex items-center space-x-6">
             <Link href="/assessment" className="text-gray-600 hover:text-blue-600 transition-colors">
               Assessment
+            </Link>
+            <Link href="/assessments" className="text-gray-600 hover:text-blue-600 transition-colors">
+              My Assessments
             </Link>
             <Link href="/community" className="text-gray-600 hover:text-blue-600 transition-colors">
               Community
@@ -88,7 +91,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
         >
           <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
@@ -104,6 +107,26 @@ export default function Home() {
               <Link href="/assessment">
                 <Button variant="ghost" className="w-full justify-between group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
                   Start Assessment
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <History className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+              </div>
+              <CardTitle className="text-xl mb-2">My Assessments</CardTitle>
+              <CardDescription className="text-base leading-relaxed">
+                Track your AI prediction history and see how your career insights have evolved over time. View past assessments and compare results.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/assessments">
+                <Button variant="ghost" className="w-full justify-between group-hover:bg-purple-50 dark:group-hover:bg-purple-900/20">
+                  View History
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
@@ -132,8 +155,8 @@ export default function Home() {
 
           <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/30 dark:to-purple-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <TrendingUp className="w-8 h-8 text-orange-600 dark:text-orange-400" />
               </div>
               <CardTitle className="text-xl mb-2">Progress Dashboard</CardTitle>
               <CardDescription className="text-base leading-relaxed">
@@ -142,7 +165,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <Link href="/dashboard">
-                <Button variant="ghost" className="w-full justify-between group-hover:bg-purple-50 dark:group-hover:bg-purple-900/20">
+                <Button variant="ghost" className="w-full justify-between group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20">
                   View Dashboard
                   <ArrowRight className="w-4 h-4" />
                 </Button>
