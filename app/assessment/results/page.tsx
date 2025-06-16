@@ -6,99 +6,71 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Brain, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Loader2, Share2 } from 'lucide-react'
+import { Brain, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Loader2, Share2, Code, Target, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Footer } from '@/components/footer'
-import { generateAIAssessment, type UserProfile, type AssessmentResult } from '@/lib/ai-assessment'
+import { type AIPrediction } from '@/lib/ai-predictions'
 
 function AssessmentResultsContent() {
   const searchParams = useSearchParams()
-  const [result, setResult] = useState<AssessmentResult | null>(null)
+  const [prediction, setPrediction] = useState<AIPrediction | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showJSON, setShowJSON] = useState(false)
 
   useEffect(() => {
-    const generateResults = async () => {
+    const loadResults = async () => {
       try {
-        // Get form data from URL params
-        const profile: UserProfile = {
-          jobTitle: searchParams.get('jobTitle') || '',
-          skills: searchParams.get('skills') || '',
-          experience: searchParams.get('experience') || '',
-          industry: searchParams.get('industry') || '',
-          concerns: searchParams.get('concerns') || ''
-        }
-
-        if (!profile.jobTitle || !profile.skills) {
-          setError('Missing required information. Please complete the assessment form.')
+        // Get prediction data from URL params
+        const predictionParam = searchParams.get('prediction')
+        
+        if (!predictionParam) {
+          setError('No prediction data found. Please complete the assessment form.')
           setLoading(false)
           return
         }
 
-        // Generate AI assessment
-        const assessment = await generateAIAssessment(profile)
-        setResult(assessment)
-
-        // Save assessment to database
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await supabase
-            .from('assessments')
-            .insert({
-              user_id: user.id,
-              job_title: profile.jobTitle,
-              skills: profile.skills,
-              experience: profile.experience,
-              industry: profile.industry,
-              concerns: profile.concerns,
-              risk_level: assessment.riskLevel,
-              risk_percentage: assessment.riskPercentage,
-              impact_areas: assessment.impactAreas,
-              opportunities: assessment.opportunities,
-              recommendations: assessment.recommendations,
-              timeframe: assessment.timeframe,
-              detailed_analysis: assessment.detailedAnalysis
-            })
-        }
+        const parsedPrediction: AIPrediction = JSON.parse(predictionParam)
+        setPrediction(parsedPrediction)
 
       } catch (err) {
-        console.error('Error generating assessment:', err)
-        setError('Failed to generate assessment. Please try again.')
+        console.error('Error loading results:', err)
+        setError('Failed to load assessment results. Please try again.')
       } finally {
         setLoading(false)
       }
     }
 
-    generateResults()
+    loadResults()
   }, [searchParams])
 
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'low': return 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/30'
-      case 'medium': return 'text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/30'
-      case 'high': return 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30'
-      default: return 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-900/30'
-    }
+  const getRiskColor = (score: number) => {
+    if (score <= 25) return 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/30'
+    if (score <= 50) return 'text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/30'
+    return 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30'
   }
 
-  const getRiskIcon = (level: string) => {
-    switch (level) {
-      case 'low': return <CheckCircle className="w-5 h-5" />
-      case 'medium': return <AlertTriangle className="w-5 h-5" />
-      case 'high': return <AlertTriangle className="w-5 h-5" />
-      default: return <AlertTriangle className="w-5 h-5" />
-    }
+  const getRiskIcon = (score: number) => {
+    if (score <= 25) return <CheckCircle className="w-5 h-5" />
+    if (score <= 50) return <AlertTriangle className="w-5 h-5" />
+    return <AlertTriangle className="w-5 h-5" />
+  }
+
+  const getRiskLevel = (score: number) => {
+    if (score <= 25) return 'LOW'
+    if (score <= 50) return 'MEDIUM'
+    return 'HIGH'
   }
 
   const handleShare = async () => {
-    if (navigator.share && result) {
+    if (navigator.share && prediction) {
       try {
         await navigator.share({
-          title: 'My AI Impact Assessment',
-          text: `I just completed an AI impact assessment! My risk level is ${result.riskLevel} with ${result.riskPercentage}% automation risk.`,
+          title: 'My AI Impact Prediction',
+          text: `I just got my AI impact prediction! Risk score: ${prediction.risk_score}% - ${prediction.impact}`,
           url: window.location.href
         })
       } catch (err) {
@@ -112,6 +84,13 @@ function AssessmentResultsContent() {
     }
   }
 
+  const copyJSONToClipboard = () => {
+    if (prediction) {
+      navigator.clipboard.writeText(JSON.stringify(prediction, null, 2))
+      toast.success('JSON prediction copied to clipboard!')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
@@ -121,14 +100,14 @@ function AssessmentResultsContent() {
           </div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Analyzing Your Profile
+              Loading Your AI Prediction
             </h2>
             <p className="text-gray-600 dark:text-gray-300">
-              Our AI is generating personalized insights for your career...
+              Preparing your personalized results...
             </p>
             <div className="flex items-center justify-center space-x-2 mt-4">
               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-              <span className="text-sm text-gray-500 dark:text-gray-400">This may take a few moments</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Almost ready</span>
             </div>
           </div>
         </div>
@@ -150,7 +129,7 @@ function AssessmentResultsContent() {
             <CardContent className="text-center p-8">
               <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                Assessment Error
+                Results Error
               </h2>
               <p className="text-gray-600 dark:text-gray-300 mb-6">
                 {error}
@@ -168,7 +147,7 @@ function AssessmentResultsContent() {
     )
   }
 
-  if (!result) {
+  if (!prediction) {
     return null
   }
 
@@ -183,7 +162,7 @@ function AssessmentResultsContent() {
           </Link>
           <div className="flex items-center space-x-2">
             <Brain className="w-6 h-6 text-blue-600" />
-            <span className="font-semibold hidden sm:inline">Assessment Results</span>
+            <span className="font-semibold hidden sm:inline">AI Prediction Results</span>
           </div>
         </div>
       </nav>
@@ -200,66 +179,127 @@ function AssessmentResultsContent() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle className="text-2xl flex items-center gap-3 mb-2">
-                    Your AI Impact Assessment
-                    <Badge className={getRiskColor(result.riskLevel)}>
-                      {getRiskIcon(result.riskLevel)}
-                      {result.riskLevel.toUpperCase()} RISK
+                    Your AI Impact Prediction
+                    <Badge className={getRiskColor(prediction.risk_score)}>
+                      {getRiskIcon(prediction.risk_score)}
+                      {getRiskLevel(prediction.risk_score)} RISK
                     </Badge>
                   </CardTitle>
                   <CardDescription>
                     Based on your profile as a {searchParams.get('jobTitle')}
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={handleShare}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share Results
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setShowJSON(!showJSON)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Code className="w-4 h-4" />
+                    {showJSON ? 'Hide' : 'Show'} JSON
+                  </Button>
+                  <Button
+                    onClick={handleShare}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">Automation Risk</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{result.riskPercentage}%</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">Risk Score</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">{prediction.risk_score}%</span>
                   </div>
-                  <Progress value={result.riskPercentage} className="h-3" />
+                  <Progress value={prediction.risk_score} className="h-3" />
                 </div>
-                <p className="text-gray-600 dark:text-gray-300">
-                  AI may impact approximately {result.riskPercentage}% of your current tasks within the next {result.timeframe}.
-                </p>
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                  <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                    {result.detailedAnalysis}
+                  <p className="text-gray-700 dark:text-gray-300 font-medium">
+                    {prediction.impact}
                   </p>
+                </div>
+                
+                {/* Metadata */}
+                <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>Timeframe: {prediction.timeframe}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Target className="w-4 h-4" />
+                    <span>Confidence: {Math.round(prediction.confidence * 100)}%</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Impact Areas and Opportunities */}
+          {/* JSON Display */}
+          {showJSON && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Code className="w-5 h-5 text-purple-500" />
+                      JSON Prediction Data
+                    </CardTitle>
+                    <Button
+                      onClick={copyJSONToClipboard}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Copy JSON
+                    </Button>
+                  </div>
+                  <CardDescription>
+                    Structured prediction data for developers and integrations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <pre className="bg-gray-50 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto text-sm">
+                    <code className="text-gray-800 dark:text-gray-200">
+                      {JSON.stringify(prediction, null, 2)}
+                    </code>
+                  </pre>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Actions and Opportunities */}
           <div className="grid md:grid-cols-2 gap-6">
             <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-orange-500" />
-                  Areas of Impact
+                  <CheckCircle className="w-5 h-5 text-blue-500" />
+                  Recommended Actions
                 </CardTitle>
                 <CardDescription>
-                  Tasks that may be affected by AI automation
+                  Steps you can take to thrive in the AI era
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
-                  {result.impactAreas.map((area, index) => (
+                  {prediction.actions.map((action, index) => (
                     <li key={index} className="flex items-start gap-3">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0" />
-                      <span className="text-gray-700 dark:text-gray-300 text-sm">{area}</span>
+                      <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                          {index + 1}
+                        </span>
+                      </div>
+                      <span className="text-gray-700 dark:text-gray-300 text-sm">{action}</span>
                     </li>
                   ))}
                 </ul>
@@ -273,12 +313,12 @@ function AssessmentResultsContent() {
                   New Opportunities
                 </CardTitle>
                 <CardDescription>
-                  Emerging roles and skills in the AI era
+                  Emerging roles and possibilities in your field
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
-                  {result.opportunities.map((opportunity, index) => (
+                  {prediction.opportunities.map((opportunity, index) => (
                     <li key={index} className="flex items-start gap-3">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0" />
                       <span className="text-gray-700 dark:text-gray-300 text-sm">{opportunity}</span>
@@ -288,33 +328,6 @@ function AssessmentResultsContent() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Recommendations */}
-          <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-blue-500" />
-                Recommended Actions
-              </CardTitle>
-              <CardDescription>
-                Steps you can take to thrive in the AI era
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                {result.recommendations.map((recommendation, index) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                        {index + 1}
-                      </span>
-                    </div>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{recommendation}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

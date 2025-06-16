@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Brain, ArrowLeft, User, LogOut, Loader2, Plus, X } from 'lucide-react'
+import { Brain, ArrowLeft, User, LogOut, Loader2, Plus, X, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Footer } from '@/components/footer'
 import { saveUserProfile, getUserProfile, parseSkillsString, skillsArrayToString, type UserFormData } from '@/lib/supabase-users'
+import { generateAIPrediction, saveAIPrediction, type UserProfile, type AIPrediction } from '@/lib/ai-predictions'
 import type { User } from '@supabase/supabase-js'
 
 interface FormData {
@@ -31,6 +32,7 @@ export default function AssessmentFormPage() {
   const [signingIn, setSigningIn] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const [generatingPrediction, setGeneratingPrediction] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     jobTitle: '',
     skills: [],
@@ -235,28 +237,39 @@ export default function AssessmentFormPage() {
         return
       }
 
-      // Also save to user_profiles table for assessment compatibility
-      await supabase
-        .from('user_profiles')
-        .upsert({
-          user_id: user.id,
-          job_title: formData.jobTitle.trim(),
-          skills: formData.skillsInput.trim(),
-          experience: formData.experience.trim(),
-          industry: formData.industry.trim(),
-          concerns: formData.concerns.trim(),
-          updated_at: new Date().toISOString()
-        })
-
-      toast.success('Profile saved! Generating your AI impact assessment...')
+      toast.success('Profile saved! Generating AI impact prediction...')
       
-      // Redirect to results page with form data
+      // Generate AI prediction
+      setGeneratingPrediction(true)
+      
+      const userProfile: UserProfile = {
+        job: formData.jobTitle.trim(),
+        skills: formData.skills.filter(skill => skill.trim().length > 0),
+        experience: formData.experience.trim(),
+        industry: formData.industry.trim(),
+        concerns: formData.concerns.trim()
+      }
+
+      const prediction = await generateAIPrediction(userProfile)
+      
+      // Save AI prediction to database
+      const { success: predictionSaved, error: predictionError } = await saveAIPrediction(user.id, prediction)
+      
+      if (!predictionSaved) {
+        console.error('Failed to save prediction:', predictionError)
+        // Continue anyway - we have the prediction in memory
+      }
+
+      toast.success('🎉 AI prediction generated successfully!')
+      
+      // Redirect to results page with prediction data
       const params = new URLSearchParams({
         jobTitle: formData.jobTitle,
         skills: formData.skillsInput,
         experience: formData.experience,
         industry: formData.industry,
-        concerns: formData.concerns
+        concerns: formData.concerns,
+        prediction: JSON.stringify(prediction)
       })
       
       window.location.href = `/assessment/results?${params.toString()}`
@@ -266,6 +279,7 @@ export default function AssessmentFormPage() {
       toast.error('An error occurred. Please try again.')
     } finally {
       setSubmitting(false)
+      setGeneratingPrediction(false)
     }
   }
 
@@ -332,7 +346,7 @@ export default function AssessmentFormPage() {
                   Discover AI's Impact on Your Career
                 </CardTitle>
                 <CardDescription className="text-base text-gray-600 dark:text-gray-300">
-                  Sign in with Google to get personalized insights on how AI might affect your work and discover new opportunities.
+                  Sign in with Google to get personalized JSON-based AI predictions on how AI might affect your work and discover new opportunities.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -360,7 +374,7 @@ export default function AssessmentFormPage() {
                 </Button>
                 <div className="text-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    We use Google sign-in to securely save your assessment results and track your progress.
+                    We use Google sign-in to securely save your assessment results and AI predictions.
                   </p>
                 </div>
               </CardContent>
@@ -376,12 +390,18 @@ export default function AssessmentFormPage() {
                   Tell Us About Yourself
                 </CardTitle>
                 <CardDescription className="text-base text-gray-600 dark:text-gray-300">
-                  Share your professional background to receive personalized AI impact insights and recommendations.
+                  Share your professional background to receive personalized AI impact predictions with structured JSON insights and actionable recommendations.
                 </CardDescription>
                 {loadingProfile && (
                   <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Loading your profile...</span>
+                  </div>
+                )}
+                {generatingPrediction && (
+                  <div className="flex items-center justify-center space-x-2 text-sm text-blue-600">
+                    <Sparkles className="w-4 h-4 animate-pulse" />
+                    <span>Generating AI predictions...</span>
                   </div>
                 )}
               </CardHeader>
@@ -508,12 +528,12 @@ export default function AssessmentFormPage() {
                     {submitting ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Saving & Generating Assessment...
+                        {generatingPrediction ? 'Generating AI Predictions...' : 'Saving Profile...'}
                       </>
                     ) : (
                       <>
-                        Get My AI Impact Assessment
-                        <Brain className="w-5 h-5 ml-2" />
+                        Get My AI Impact Prediction
+                        <Sparkles className="w-5 h-5 ml-2" />
                       </>
                     )}
                   </Button>
@@ -521,7 +541,7 @@ export default function AssessmentFormPage() {
                   {/* Required Fields Note */}
                   <div className="text-center">
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      * Required fields. Your data is securely stored and never shared.
+                      * Required fields. Your data and AI predictions are securely stored and never shared.
                     </p>
                   </div>
                 </form>
