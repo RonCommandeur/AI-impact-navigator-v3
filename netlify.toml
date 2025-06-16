@@ -1,0 +1,19 @@
+[build]
+  publish = "out"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "https://swtyheoaewjnfatjofdj.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3dHloZW9hZXdqbmZhdGpvZmRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NzEwMTAsImV4cCI6MjA2NTI0NzAxMH0.oIp3Emocv3oUgvRb0uf4P7xJx7NWoPeNFp4ZeKyuBlg"
+
+[context.deploy-preview.environment]
+  NEXT_PUBLIC_SUPABASE_URL = "https://swtyheoaewjnfatjofdj.supabase.co"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3dHloZW9hZXdqbmZhdGpvZmRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NzEwMTAsImV4cCI6MjA2NTI0NzAxMH0.oIp3Emocv3oUgvRb0uf4P7xJx7NWoPeNFp4ZeKyuBlg"
