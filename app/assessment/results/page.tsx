@@ -6,13 +6,34 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Brain, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Loader2, Share2, Code, Target, Clock } from 'lucide-react'
+import { Brain, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Loader2, Share2, Code, Target, Clock, Download } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Footer } from '@/components/footer'
 import { type AIPrediction } from '@/lib/ai-predictions'
+import { Doughnut, Bar } from 'react-chartjs-2'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend
+)
 
 function AssessmentResultsContent() {
   const searchParams = useSearchParams()
@@ -65,6 +86,12 @@ function AssessmentResultsContent() {
     return 'HIGH'
   }
 
+  const getRiskChartColor = (score: number) => {
+    if (score <= 25) return '#10b981' // green-500
+    if (score <= 50) return '#f59e0b' // amber-500
+    return '#ef4444' // red-500
+  }
+
   const handleShare = async () => {
     if (navigator.share && prediction) {
       try {
@@ -89,6 +116,103 @@ function AssessmentResultsContent() {
       navigator.clipboard.writeText(JSON.stringify(prediction, null, 2))
       toast.success('JSON prediction copied to clipboard!')
     }
+  }
+
+  const downloadJSON = () => {
+    if (prediction) {
+      const dataStr = JSON.stringify(prediction, null, 2)
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
+      
+      const exportFileDefaultName = `ai-prediction-${new Date().toISOString().split('T')[0]}.json`
+      
+      const linkElement = document.createElement('a')
+      linkElement.setAttribute('href', dataUri)
+      linkElement.setAttribute('download', exportFileDefaultName)
+      linkElement.click()
+      
+      toast.success('JSON prediction downloaded!')
+    }
+  }
+
+  // Chart.js configuration for risk score visualization
+  const riskChartData = prediction ? {
+    labels: ['Risk Score', 'Safe Zone'],
+    datasets: [
+      {
+        data: [prediction.risk_score, 100 - prediction.risk_score],
+        backgroundColor: [
+          getRiskChartColor(prediction.risk_score),
+          '#e5e7eb' // gray-200
+        ],
+        borderColor: [
+          getRiskChartColor(prediction.risk_score),
+          '#d1d5db' // gray-300
+        ],
+        borderWidth: 2,
+        cutout: '70%',
+      },
+    ],
+  } : null
+
+  const riskChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            if (context.dataIndex === 0) {
+              return `Risk Score: ${context.parsed}%`
+            }
+            return `Safe Zone: ${context.parsed}%`
+          }
+        }
+      }
+    },
+  }
+
+  // Bar chart for actions priority
+  const actionsChartData = prediction ? {
+    labels: prediction.actions.slice(0, 5).map((_, index) => `Action ${index + 1}`),
+    datasets: [
+      {
+        label: 'Priority Level',
+        data: prediction.actions.slice(0, 5).map((_, index) => 100 - (index * 15)), // Decreasing priority
+        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 2,
+        borderRadius: 8,
+      },
+    ],
+  } : null
+
+  const actionsChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          callback: function(value: any) {
+            return value + '%'
+          }
+        }
+      },
+      x: {
+        ticks: {
+          maxRotation: 0,
+        }
+      }
+    },
   }
 
   if (loading) {
@@ -124,8 +248,8 @@ function AssessmentResultsContent() {
             <span>Back to Assessment</span>
           </Link>
         </nav>
-        <div className="flex-grow flex items-center justify-center">
-          <Card className="max-w-md mx-4 border-0 shadow-xl bg-white dark:bg-slate-800">
+        <div className="flex-grow flex items-center justify-center px-4">
+          <Card className="max-w-md mx-auto border-0 shadow-xl bg-white dark:bg-slate-800">
             <CardContent className="text-center p-8">
               <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -154,87 +278,125 @@ function AssessmentResultsContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
       {/* Navigation */}
-      <nav className="container mx-auto px-4 py-6">
+      <nav className="container mx-auto px-4 py-4 sm:py-6">
         <div className="flex items-center justify-between">
           <Link href="/assessment/form" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1">
             <ArrowLeft className="w-5 h-5" />
-            <span>New Assessment</span>
+            <span className="hidden sm:inline">New Assessment</span>
+            <span className="sm:hidden">Back</span>
           </Link>
           <div className="flex items-center space-x-2">
             <Brain className="w-6 h-6 text-blue-600" />
             <span className="font-semibold hidden sm:inline">AI Prediction Results</span>
+            <span className="font-semibold sm:hidden">Results</span>
           </div>
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-8 flex-grow">
+      <div className="container mx-auto px-4 py-4 sm:py-8 flex-grow">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-4xl mx-auto space-y-6"
         >
-          {/* Risk Overview */}
+          {/* Risk Score Overview with Chart */}
           <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <CardTitle className="text-2xl flex items-center gap-3 mb-2">
-                    Your AI Impact Prediction
-                    <Badge className={getRiskColor(prediction.risk_score)}>
-                      {getRiskIcon(prediction.risk_score)}
-                      {getRiskLevel(prediction.risk_score)} RISK
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>
-                    Based on your profile as a {searchParams.get('jobTitle')}
-                  </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setShowJSON(!showJSON)}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Code className="w-4 h-4" />
-                    {showJSON ? 'Hide' : 'Show'} JSON
-                  </Button>
-                  <Button
-                    onClick={handleShare}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Share
-                  </Button>
+            <CardHeader className="pb-4">
+              <div className="flex flex-col space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-xl sm:text-2xl flex items-center gap-3 mb-2">
+                      Your AI Impact Prediction
+                      <Badge className={getRiskColor(prediction.risk_score)}>
+                        {getRiskIcon(prediction.risk_score)}
+                        <span className="ml-1">{getRiskLevel(prediction.risk_score)}</span>
+                      </Badge>
+                    </CardTitle>
+                    <CardDescription className="text-sm sm:text-base">
+                      Based on your profile as a {searchParams.get('jobTitle')}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={() => setShowJSON(!showJSON)}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Code className="w-4 h-4" />
+                      <span className="hidden sm:inline">{showJSON ? 'Hide' : 'Show'} JSON</span>
+                      <span className="sm:hidden">JSON</span>
+                    </Button>
+                    <Button
+                      onClick={downloadJSON}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">Download</span>
+                    </Button>
+                    <Button
+                      onClick={handleShare}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">Share</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">Risk Score</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{prediction.risk_score}%</span>
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Risk Score Chart */}
+                <div className="space-y-4">
+                  <div className="relative h-48 sm:h-56">
+                    {riskChartData && (
+                      <Doughnut data={riskChartData} options={riskChartOptions} />
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                          {prediction.risk_score}%
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                          Risk Score
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <Progress value={prediction.risk_score} className="h-3" />
                 </div>
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                  <p className="text-gray-700 dark:text-gray-300 font-medium">
-                    {prediction.impact}
-                  </p>
-                </div>
-                
-                {/* Metadata */}
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    <span>Timeframe: {prediction.timeframe}</span>
+
+                {/* Impact Summary */}
+                <div className="space-y-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                      Impact Summary
+                    </h4>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
+                      {prediction.impact}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Target className="w-4 h-4" />
-                    <span>Confidence: {Math.round(prediction.confidence * 100)}%</span>
+                  
+                  {/* Metadata */}
+                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      <div>
+                        <div className="font-medium">Timeframe</div>
+                        <div>{prediction.timeframe}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4" />
+                      <div>
+                        <div className="font-medium">Confidence</div>
+                        <div>{Math.round(prediction.confidence * 100)}%</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -268,7 +430,7 @@ function AssessmentResultsContent() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <pre className="bg-gray-50 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto text-sm">
+                  <pre className="bg-gray-50 dark:bg-slate-900 p-4 rounded-lg overflow-x-auto text-xs sm:text-sm">
                     <code className="text-gray-800 dark:text-gray-200">
                       {JSON.stringify(prediction, null, 2)}
                     </code>
@@ -279,7 +441,8 @@ function AssessmentResultsContent() {
           )}
 
           {/* Actions and Opportunities */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Recommended Actions with Chart */}
             <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -287,10 +450,18 @@ function AssessmentResultsContent() {
                   Recommended Actions
                 </CardTitle>
                 <CardDescription>
-                  Steps you can take to thrive in the AI era
+                  Priority-ranked steps to thrive in the AI era
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Actions Priority Chart */}
+                <div className="h-32 sm:h-40">
+                  {actionsChartData && (
+                    <Bar data={actionsChartData} options={actionsChartOptions} />
+                  )}
+                </div>
+                
+                {/* Actions List */}
                 <ul className="space-y-3">
                   {prediction.actions.map((action, index) => (
                     <li key={index} className="flex items-start gap-3">
@@ -299,13 +470,14 @@ function AssessmentResultsContent() {
                           {index + 1}
                         </span>
                       </div>
-                      <span className="text-gray-700 dark:text-gray-300 text-sm">{action}</span>
+                      <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">{action}</span>
                     </li>
                   ))}
                 </ul>
               </CardContent>
             </Card>
 
+            {/* New Opportunities */}
             <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -321,7 +493,7 @@ function AssessmentResultsContent() {
                   {prediction.opportunities.map((opportunity, index) => (
                     <li key={index} className="flex items-start gap-3">
                       <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0" />
-                      <span className="text-gray-700 dark:text-gray-300 text-sm">{opportunity}</span>
+                      <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">{opportunity}</span>
                     </li>
                   ))}
                 </ul>
@@ -329,7 +501,7 @@ function AssessmentResultsContent() {
             </Card>
           </div>
 
-          {/* Actions */}
+          {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/community">
               <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700">
@@ -344,7 +516,7 @@ function AssessmentResultsContent() {
             </Link>
             <Link href="/assessment/form">
               <Button size="lg" variant="outline" className="w-full sm:w-auto">
-                Take New Assessment
+                New Assessment
               </Button>
             </Link>
           </div>
