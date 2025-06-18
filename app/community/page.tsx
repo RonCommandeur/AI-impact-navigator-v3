@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Users, ArrowLeft, Plus, ThumbsUp, Award, Sparkles, MessageCircle, Share2, Loader2, User, LogOut } from 'lucide-react'
+import { Users, ArrowLeft, Plus, ThumbsUp, Award, Sparkles, MessageCircle, Share2, Loader2, User, LogOut, Coins } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -24,6 +24,7 @@ import {
   type Contribution, 
   type ContributionFormData 
 } from '@/lib/supabase-contributions'
+import { formatAlgorandAddress } from '@/lib/algorand-nft'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 export default function CommunityPage() {
@@ -31,6 +32,7 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<Contribution[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [votingStates, setVotingStates] = useState<Record<string, boolean>>({})
   const [newPost, setNewPost] = useState<ContributionFormData>({
     title: '',
     content: '',
@@ -121,8 +123,11 @@ export default function CommunityPage() {
       return
     }
 
+    // Set voting state to show loading
+    setVotingStates(prev => ({ ...prev, [contributionId]: true }))
+
     try {
-      const { success, error, hasVoted } = await voteOnContribution(user.id, contributionId)
+      const { success, error, hasVoted, nftMinted, nftResult } = await voteOnContribution(user.id, contributionId)
       
       if (!success) {
         toast.error(error || 'Failed to vote')
@@ -139,13 +144,9 @@ export default function CommunityPage() {
             user_has_voted: hasVoted
           }
 
-          // Check for NFT eligibility
-          if (newVotes >= 10 && !post.nft_id) {
-            // Award NFT (mock implementation)
-            const mockNftId = `NFT_${Date.now()}`
-            awardNFT(contributionId, mockNftId)
-            updatedPost.nft_id = mockNftId
-            toast.success(`🎉 ${post.author_email} earned an NFT for reaching 10 votes!`)
+          // Update NFT status if minted
+          if (nftMinted && nftResult?.assetId) {
+            updatedPost.nft_id = nftResult.assetId.toString()
           }
 
           return updatedPost
@@ -153,10 +154,22 @@ export default function CommunityPage() {
         return post
       }))
       
-      toast.success(hasVoted ? 'Vote added!' : 'Vote removed!')
+      // Show appropriate toast messages
+      if (nftMinted && nftResult?.success) {
+        const post = posts.find(p => p.id === contributionId)
+        toast.success(
+          `🎉 NFT Minted! ${post?.author_email?.split('@')[0]} earned an Algorand NFT (Asset ID: ${nftResult.assetId}) for reaching 10 votes!`,
+          { duration: 6000 }
+        )
+      } else {
+        toast.success(hasVoted ? 'Vote added!' : 'Vote removed!')
+      }
     } catch (error) {
       console.error('Vote error:', error)
       toast.error('Failed to vote')
+    } finally {
+      // Clear voting state
+      setVotingStates(prev => ({ ...prev, [contributionId]: false }))
     }
   }
 
@@ -298,8 +311,12 @@ export default function CommunityPage() {
             Community Hub
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Share your AI experiences, learn from others, and earn blockchain-verified NFTs for valuable contributions.
+            Share your AI experiences, learn from others, and earn <strong>Algorand NFTs</strong> for valuable contributions with 10+ votes.
           </p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <Coins className="w-5 h-5 text-blue-600" />
+            <span className="text-sm text-blue-600 font-medium">Powered by Algorand Blockchain</span>
+          </div>
         </motion.div>
 
         {/* Sign In Prompt for Non-Authenticated Users */}
@@ -317,7 +334,7 @@ export default function CommunityPage() {
                   Join the Community
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Sign in to share your AI experiences and vote on posts.
+                  Sign in to share your AI experiences, vote on posts, and earn Algorand NFTs.
                 </p>
                 <Button
                   onClick={handleGoogleSignIn}
@@ -370,7 +387,7 @@ export default function CommunityPage() {
                 <DialogHeader>
                   <DialogTitle>Share Your AI Experience</DialogTitle>
                   <DialogDescription>
-                    Help others by sharing your AI journey, tutorials, or insights. Posts with 10+ votes earn NFTs!
+                    Help others by sharing your AI journey, tutorials, or insights. Posts with 10+ votes earn Algorand NFTs!
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -470,7 +487,7 @@ export default function CommunityPage() {
                           {post.nft_id && (
                             <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
                               <Award className="w-3 h-3 mr-1" />
-                              NFT
+                              NFT #{post.nft_id}
                             </Badge>
                           )}
                         </div>
@@ -502,10 +519,14 @@ export default function CommunityPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleVote(post.id)}
-                        disabled={!user}
+                        disabled={!user || votingStates[post.id]}
                         className={`${post.user_has_voted ? 'text-green-600' : 'hover:text-green-600'}`}
                       >
-                        <ThumbsUp className={`w-4 h-4 mr-2 ${post.user_has_voted ? 'fill-current' : ''}`} />
+                        {votingStates[post.id] ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <ThumbsUp className={`w-4 h-4 mr-2 ${post.user_has_voted ? 'fill-current' : ''}`} />
+                        )}
                         {post.votes}
                       </Button>
                       
@@ -520,13 +541,31 @@ export default function CommunityPage() {
                       </Button>
                     </div>
                     
-                    {post.votes >= 10 && (
+                    {post.votes >= 10 && post.nft_id && (
                       <div className="flex items-center text-sm text-yellow-600">
                         <Sparkles className="w-4 h-4 mr-1" />
-                        NFT Earned!
+                        <span className="hidden sm:inline">Algorand NFT Earned!</span>
+                        <span className="sm:hidden">NFT Earned!</span>
                       </div>
                     )}
                   </div>
+
+                  {/* NFT Details */}
+                  {post.nft_id && (
+                    <div className="mt-4 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Coins className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+                          Algorand NFT Minted
+                        </span>
+                      </div>
+                      <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                        <div>Asset ID: {post.nft_id}</div>
+                        <div>Blockchain: Algorand Testnet</div>
+                        <div>Type: Community Contributor NFT</div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>

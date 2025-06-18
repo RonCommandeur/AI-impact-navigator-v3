@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { mintContributionNFT, type NFTMintResult } from './algorand-nft'
 import type { User } from '@supabase/supabase-js'
 
 export interface Contribution {
@@ -112,11 +113,11 @@ export async function getContributions(
   }
 }
 
-// Vote on a contribution
+// Vote on a contribution with automatic NFT minting
 export async function voteOnContribution(
   authUserId: string,
   contributionId: string
-): Promise<{ success: boolean; error?: string; hasVoted?: boolean }> {
+): Promise<{ success: boolean; error?: string; hasVoted?: boolean; nftMinted?: boolean; nftResult?: NFTMintResult }> {
   try {
     // Check if user has already voted
     const { data: existingVote } = await supabase
@@ -154,6 +155,56 @@ export async function voteOnContribution(
         return { success: false, error: 'Failed to add vote' }
       }
 
+      // Check if contribution now qualifies for NFT (10+ votes)
+      const { data: contribution } = await supabase
+        .from('contributions')
+        .select('*')
+        .eq('id', contributionId)
+        .single()
+
+      if (contribution && contribution.votes >= 10 && !contribution.nft_id) {
+        // Get author email for NFT metadata
+        const { data: users } = await supabase.auth.admin.listUsers()
+        const authorUser = users.users.find(user => user.id === contribution.auth_user_id)
+        
+        const contributionWithEmail = {
+          ...contribution,
+          author_email: authorUser?.email || 'Unknown User'
+        }
+
+        // Mint NFT on Algorand
+        console.log('Minting NFT for contribution:', contributionId)
+        const nftResult = await mintContributionNFT(contributionWithEmail)
+
+        if (nftResult.success && nftResult.assetId) {
+          // Store NFT asset ID in database
+          const { error: updateError } = await supabase
+            .from('contributions')
+            .update({ 
+              nft_id: nftResult.assetId.toString()
+            })
+            .eq('id', contributionId)
+
+          if (updateError) {
+            console.error('Failed to update NFT ID:', updateError)
+          }
+
+          return { 
+            success: true, 
+            hasVoted: true, 
+            nftMinted: true,
+            nftResult 
+          }
+        } else {
+          console.error('NFT minting failed:', nftResult.error)
+          return { 
+            success: true, 
+            hasVoted: true, 
+            nftMinted: false 
+          }
+        }
+      }
+
       return { success: true, hasVoted: true }
     }
   } catch (error) {
@@ -182,15 +233,15 @@ export async function checkNFTEligibility(contributionId: string): Promise<boole
   }
 }
 
-// Award NFT to contribution
+// Award NFT to contribution (now stores Algorand asset ID)
 export async function awardNFT(
   contributionId: string, 
-  nftId: string
+  algorandAssetId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { error } = await supabase
       .from('contributions')
-      .update({ nft_id: nftId })
+      .update({ nft_id: algorandAssetId })
       .eq('id', contributionId)
 
     if (error) {
@@ -201,6 +252,48 @@ export async function awardNFT(
     return { success: true }
   } catch (error) {
     console.error('Award NFT error:', error)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
+// Get contribution with NFT details
+export async function getContributionWithNFT(contributionId: string): Promise<{
+  success: boolean
+  data?: Contribution & { nft_details?: any }
+  error?: string
+}> {
+  try {
+    const { data: contribution, error } = await supabase
+      .from('contributions')
+      .select('*')
+      .eq('id', contributionId)
+      .single()
+
+    if (error) {
+      return { success: false, error: 'Contribution not found' }
+    }
+
+    // If contribution has NFT, get NFT details from Algorand
+    let nft_details = null
+    if (contribution.nft_id) {
+      // In production, this would fetch from Algorand blockchain
+      nft_details = {
+        assetId: parseInt(contribution.nft_id),
+        name: 'Community Contributor NFT',
+        description: `NFT awarded for "${contribution.title}"`,
+        imageUrl: 'https://via.placeholder.com/200x200/6366f1/ffffff?text=NFT'
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        ...contribution,
+        nft_details
+      }
+    }
+  } catch (error) {
+    console.error('Get contribution with NFT error:', error)
     return { success: false, error: 'An unexpected error occurred' }
   }
 }
