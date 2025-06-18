@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Brain, Users, TrendingUp, Zap, ArrowRight, Sparkles, History } from 'lucide-react'
+import { Brain, Users, TrendingUp, Zap, ArrowRight, Sparkles, History, User } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Footer } from '@/components/footer'
@@ -40,6 +40,9 @@ export default function Home() {
             </Link>
             <Link href="/community" className="text-gray-600 hover:text-blue-600 transition-colors">
               Community
+            </Link>
+            <Link href="/my-contributions" className="text-gray-600 hover:text-blue-600 transition-colors">
+              My Contributions
             </Link>
             <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">
               Dashboard
@@ -91,7 +94,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8"
         >
           <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
@@ -147,6 +150,26 @@ export default function Home() {
               <Link href="/community">
                 <Button variant="ghost" className="w-full justify-between group-hover:bg-green-50 dark:group-hover:bg-green-900/20">
                   Join Community
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <User className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <CardTitle className="text-xl mb-2">My Contributions</CardTitle>
+              <CardDescription className="text-base leading-relaxed">
+                View your community posts, track votes received, and manage your earned Algorand NFTs. Monitor your community impact and reputation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/my-contributions">
+                <Button variant="ghost" className="w-full justify-between group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20">
+                  View Posts
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
