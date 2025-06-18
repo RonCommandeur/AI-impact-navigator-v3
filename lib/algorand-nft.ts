@@ -8,9 +8,8 @@ const ALGORAND_TOKEN = ''
 // Initialize Algorand client
 export const algodClient = new algosdk.Algodv2(ALGORAND_TOKEN, ALGORAND_SERVER, ALGORAND_PORT)
 
-// Mock wallet for demo purposes - in production, this would be user's wallet
-const DEMO_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art'
-const demoAccount = algosdk.mnemonicToSecretKey(DEMO_MNEMONIC)
+// Mock demo account address for client-side operations
+const DEMO_ACCOUNT_ADDRESS = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 
 export interface NFTMetadata {
   title: string
@@ -58,44 +57,21 @@ async function uploadToIPFS(metadata: NFTMetadata): Promise<string> {
   return `https://ipfs.io/ipfs/${mockHash}`
 }
 
-// Create Algorand Standard Asset (ASA) for NFT
+// Mock NFT asset creation (completely simulated)
 async function createNFTAsset(
   metadata: NFTMetadata,
   metadataUrl: string
 ): Promise<{ assetId: number; txId: string }> {
   try {
-    // Get suggested transaction parameters
-    const suggestedParams = await algodClient.getTransactionParams().do()
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // Create asset creation transaction
-    const assetCreateTxn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-      from: demoAccount.addr,
-      suggestedParams,
-      defaultFrozen: false,
-      unitName: 'AINFT',
-      assetName: metadata.title.substring(0, 32), // Max 32 chars
-      manager: demoAccount.addr,
-      reserve: demoAccount.addr,
-      freeze: demoAccount.addr,
-      clawback: demoAccount.addr,
-      assetURL: metadataUrl.substring(0, 96), // Max 96 chars
-      assetMetadataHash: undefined,
-      total: 1, // NFT should have total supply of 1
-      decimals: 0
-    })
-
-    // Sign the transaction
-    const signedTxn = assetCreateTxn.signTxn(demoAccount.sk)
-
-    // Submit the transaction
-    const { txId } = await algodClient.sendRawTransaction(signedTxn).do()
-
-    // Wait for confirmation
-    const confirmedTxn = await algosdk.waitForConfirmation(algodClient, txId, 4)
+    // Generate mock asset ID and transaction ID
+    const assetId = Math.floor(Math.random() * 1000000000) + 100000000
+    const txId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
-    // Get the asset ID from the transaction
-    const assetId = confirmedTxn['asset-index']
-
+    console.log('Mock NFT asset created:', { assetId, txId, metadataUrl })
+    
     return { assetId, txId }
   } catch (error) {
     console.error('Error creating NFT asset:', error)
@@ -146,7 +122,7 @@ export async function mintContributionNFT(contribution: {
     const metadataUrl = await uploadToIPFS(metadata)
     console.log('Metadata uploaded to IPFS:', metadataUrl)
     
-    // Create NFT asset on Algorand
+    // Create NFT asset on Algorand (mock)
     const { assetId, txId } = await createNFTAsset(metadata, metadataUrl)
     console.log('NFT asset created:', { assetId, txId })
     
@@ -271,7 +247,7 @@ export async function getNFTDetails(assetId: number): Promise<{
         unitName: 'AINFT',
         total: 1,
         decimals: 0,
-        creator: demoAccount.addr,
+        creator: DEMO_ACCOUNT_ADDRESS,
         url: 'https://ipfs.io/ipfs/QmMockHash123',
         metadata: {
           title: 'Community Contributor NFT',
