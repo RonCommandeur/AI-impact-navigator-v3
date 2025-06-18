@@ -94,7 +94,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
         >
           <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
@@ -158,6 +158,34 @@ export default function Home() {
 
           <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <TrendingUp className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+              </div>
+              <CardTitle className="text-xl mb-2">Progress Dashboard</CardTitle>
+              <CardDescription className="text-base leading-relaxed">
+                Track your AI adaptation journey with real-time metrics, skill progress, and market trends. Stay motivated with visual progress indicators.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/dashboard">
+                <Button variant="ghost" className="w-full justify-between group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20">
+                  View Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Additional Features Row */}
+        <motion.div 
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 max-w-2xl mx-auto"
+        >
+          <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+            <CardHeader className="pb-4">
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/30 dark:to-indigo-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                 <User className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
               </div>
@@ -178,18 +206,18 @@ export default function Home() {
 
           <Card className="group hover:shadow-xl transition-all duration-500 hover:-translate-y-2 border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
             <CardHeader className="pb-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                <TrendingUp className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+              <div className="w-16 h-16 bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-900/30 dark:to-pink-800/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Sparkles className="w-8 h-8 text-pink-600 dark:text-pink-400" />
               </div>
-              <CardTitle className="text-xl mb-2">Progress Dashboard</CardTitle>
+              <CardTitle className="text-xl mb-2">AI-Powered Features</CardTitle>
               <CardDescription className="text-base leading-relaxed">
-                Track your AI adaptation journey with real-time metrics, skill progress, and market trends. Stay motivated with visual progress indicators.
+                Experience cutting-edge AI features including personalized predictions, smart recommendations, and blockchain-verified achievements.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/dashboard">
-                <Button variant="ghost" className="w-full justify-between group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20">
-                  View Dashboard
+              <Link href="/assessment">
+                <Button variant="ghost" className="w-full justify-between group-hover:bg-pink-50 dark:group-hover:bg-pink-900/20">
+                  Explore AI
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
@@ -203,7 +231,7 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
         >
           <Card className="max-w-4xl mx-auto bg-gradient-to-r from-blue-600 to-purple-600 border-0 text-white">
             <CardHeader className="text-center pb-6">
