@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { mintContributionNFT, type NFTMintResult } from './algorand-nft'
+import { triggerMetricsUpdate } from './supabase-metrics'
 import type { User } from '@supabase/supabase-js'
 
 export interface Contribution {
@@ -54,6 +55,9 @@ export async function createContribution(
       console.error('Create contribution error:', error)
       return { success: false, error: 'Failed to create post. Please try again.' }
     }
+
+    // Trigger metrics update in the background
+    triggerMetricsUpdate(authUser.id)
 
     return { success: true, data }
   } catch (error) {
@@ -140,6 +144,9 @@ export async function voteOnContribution(
         return { success: false, error: 'Failed to remove vote' }
       }
 
+      // Trigger metrics update for the voter
+      triggerMetricsUpdate(authUserId)
+
       return { success: true, hasVoted: false }
     } else {
       // Add vote
@@ -189,6 +196,9 @@ export async function voteOnContribution(
             console.error('Failed to update NFT ID:', updateError)
           }
 
+          // Trigger metrics update for the contribution author
+          triggerMetricsUpdate(contribution.auth_user_id)
+
           return { 
             success: true, 
             hasVoted: true, 
@@ -204,6 +214,9 @@ export async function voteOnContribution(
           }
         }
       }
+
+      // Trigger metrics update for the voter
+      triggerMetricsUpdate(authUserId)
 
       return { success: true, hasVoted: true }
     }

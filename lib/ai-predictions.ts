@@ -1,6 +1,8 @@
 // AI Impact Predictions using Claude-like analysis
 // Generates structured JSON predictions for user profiles
 
+import { triggerMetricsUpdate } from './supabase-metrics'
+
 export interface UserProfile {
   job: string
   skills: string[]
@@ -371,6 +373,9 @@ export async function saveAIPrediction(authUserId: string, prediction: AIPredict
       console.error('Save prediction error:', error)
       return { success: false, error: 'Failed to save AI prediction' }
     }
+
+    // Trigger metrics update in the background
+    triggerMetricsUpdate(authUserId)
 
     return { success: true }
   } catch (error) {

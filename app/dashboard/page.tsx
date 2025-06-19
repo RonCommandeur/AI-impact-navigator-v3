@@ -25,7 +25,8 @@ import {
   Star,
   Loader2,
   User,
-  LogOut
+  LogOut,
+  RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -45,6 +46,7 @@ import {
 } from 'chart.js'
 import { Footer } from '@/components/footer'
 import { supabase } from '@/lib/supabase'
+import { getUserMetrics, updateUserMetrics, triggerMetricsUpdate, type UserMetrics } from '@/lib/supabase-metrics'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -61,17 +63,6 @@ ChartJS.register(
   Filler
 )
 
-interface UserMetrics {
-  skillsLearned: string[]
-  assessmentsCompleted: number
-  communityContributions: number
-  nftsEarned: number
-  progressScore: number
-  totalVotes: number
-  weeklyActivity: number[]
-  skillProficiency: { skill: string; level: number }[]
-}
-
 interface TrendData {
   aiJobGrowth: number
   automationRisk: number
@@ -83,23 +74,23 @@ interface TrendData {
 export default function DashboardPage() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'skills' | 'trends' | 'activity'>('overview')
-  
   const [userMetrics, setUserMetrics] = useState<UserMetrics>({
-    skillsLearned: ['AI Tools', 'Prompt Engineering', 'Data Analysis', 'Creative Strategy', 'Community Building'],
-    assessmentsCompleted: 3,
-    communityContributions: 5,
-    nftsEarned: 2,
-    progressScore: 78,
-    totalVotes: 42,
-    weeklyActivity: [12, 19, 15, 27, 22, 18, 24],
+    skillsLearned: [],
+    assessmentsCompleted: 0,
+    communityContributions: 0,
+    nftsEarned: 0,
+    progressScore: 0,
+    totalVotes: 0,
+    weeklyActivity: [0, 0, 0, 0, 0, 0, 0],
     skillProficiency: [
-      { skill: 'AI Tools', level: 85 },
-      { skill: 'Prompt Engineering', level: 72 },
-      { skill: 'Data Analysis', level: 68 },
-      { skill: 'Creative Strategy', level: 91 },
-      { skill: 'Community Building', level: 76 }
+      { skill: 'AI Tools', level: 0 },
+      { skill: 'Prompt Engineering', level: 0 },
+      { skill: 'Data Analysis', level: 0 },
+      { skill: 'Creative Strategy', level: 0 },
+      { skill: 'Community Building', level: 0 }
     ]
   })
 
@@ -130,11 +121,16 @@ export default function DashboardPage() {
     ]
   })
 
-  // Check authentication status
+  // Check authentication status and load metrics
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user ?? null)
+      
+      if (session?.user) {
+        await loadUserMetrics(session.user.id)
+      }
+      
       setLoading(false)
     }
 
@@ -145,12 +141,76 @@ export default function DashboardPage() {
         setUser(session?.user ?? null)
         if (event === 'SIGNED_IN' && session?.user) {
           toast.success('Successfully signed in!')
+          await loadUserMetrics(session.user.id)
+        } else if (event === 'SIGNED_OUT') {
+          // Reset metrics to default
+          setUserMetrics({
+            skillsLearned: [],
+            assessmentsCompleted: 0,
+            communityContributions: 0,
+            nftsEarned: 0,
+            progressScore: 0,
+            totalVotes: 0,
+            weeklyActivity: [0, 0, 0, 0, 0, 0, 0],
+            skillProficiency: [
+              { skill: 'AI Tools', level: 0 },
+              { skill: 'Prompt Engineering', level: 0 },
+              { skill: 'Data Analysis', level: 0 },
+              { skill: 'Creative Strategy', level: 0 },
+              { skill: 'Community Building', level: 0 }
+            ]
+          })
         }
       }
     )
 
     return () => subscription.unsubscribe()
   }, [])
+
+  const loadUserMetrics = async (authUserId: string) => {
+    try {
+      const { data, error } = await getUserMetrics(authUserId)
+      
+      if (error) {
+        console.error('Error loading metrics:', error)
+        toast.error('Failed to load dashboard metrics')
+        return
+      }
+
+      if (data) {
+        setUserMetrics(data)
+      }
+    } catch (error) {
+      console.error('Error loading metrics:', error)
+      toast.error('Failed to load dashboard metrics')
+    }
+  }
+
+  const handleRefreshMetrics = async () => {
+    if (!user) return
+
+    try {
+      setRefreshing(true)
+      
+      // Trigger metrics recalculation
+      const { success, error } = await updateUserMetrics(user.id)
+      
+      if (!success) {
+        toast.error(error || 'Failed to refresh metrics')
+        return
+      }
+
+      // Reload metrics
+      await loadUserMetrics(user.id)
+      toast.success('Metrics refreshed successfully!')
+      
+    } catch (error) {
+      console.error('Error refreshing metrics:', error)
+      toast.error('Failed to refresh metrics')
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const handleSignOut = async () => {
     try {
@@ -389,6 +449,38 @@ export default function DashboardPage() {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
+        <nav className="container mx-auto px-4 py-6">
+          <Link href="/" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to Home</span>
+          </Link>
+        </nav>
+        <div className="flex-grow flex items-center justify-center px-4">
+          <Card className="max-w-md mx-auto border-0 shadow-xl bg-white dark:bg-slate-800">
+            <CardContent className="text-center p-8">
+              <Brain className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                Sign In Required
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Please sign in to view your dashboard and progress metrics.
+              </p>
+              <Link href="/assessment/form">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                  Sign In & Get Started
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
       {/* Mobile Navigation Header */}
@@ -406,8 +498,17 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Right side - User menu */}
+            {/* Right side - User menu and refresh */}
             <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefreshMetrics}
+                disabled={refreshing}
+                className="p-2"
+              >
+                <RefreshCw className={`w-4 h-4 text-gray-600 dark:text-gray-300 ${refreshing ? 'animate-spin' : ''}`} />
+              </Button>
               {user && (
                 <>
                   <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
@@ -471,7 +572,7 @@ export default function DashboardPage() {
               className="lg:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900"
             >
               <div className="px-4 py-3 space-y-2">
-                <Link href="/assessment" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <Link href="/assessment/form" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <Brain className="w-5 h-5 text-blue-600" />
                   <span className="font-medium text-gray-900 dark:text-white">New Assessment</span>
                 </Link>
@@ -525,11 +626,17 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <span className="text-blue-100">Excellent Progress</span>
+                      <span className="text-blue-100">
+                        {userMetrics.progressScore >= 75 ? 'Excellent Progress' : 
+                         userMetrics.progressScore >= 50 ? 'Good Progress' : 
+                         userMetrics.progressScore >= 25 ? 'Getting Started' : 'Just Beginning'}
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Star className="w-4 h-4 text-yellow-400" />
-                      <span className="text-blue-100">Top 15% of users</span>
+                      <span className="text-blue-100">
+                        {userMetrics.lastCalculated ? 'Real-time data' : 'Live metrics'}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -549,7 +656,7 @@ export default function DashboardPage() {
                     <div className="mt-2">
                       <div className="flex items-center text-xs text-green-600">
                         <TrendingUp className="w-3 h-3 mr-1" />
-                        +2 this month
+                        From your profile
                       </div>
                     </div>
                   </CardContent>
@@ -567,7 +674,7 @@ export default function DashboardPage() {
                     <div className="mt-2">
                       <div className="flex items-center text-xs text-green-600">
                         <TrendingUp className="w-3 h-3 mr-1" />
-                        +1 this week
+                        AI predictions
                       </div>
                     </div>
                   </CardContent>
@@ -679,27 +786,36 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
 
-              {/* Skill Recommendations */}
+              {/* Learned Skills */}
               <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-lg font-bold text-gray-900 dark:text-white">Recommended Next Steps</CardTitle>
+                  <CardTitle className="text-lg font-bold text-gray-900 dark:text-white">Skills from Your Profile</CardTitle>
                   <CardDescription className="text-gray-600 dark:text-gray-400">
-                    Skills to focus on for maximum impact
+                    Skills you've added to your assessment profile
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {[
-                      { skill: 'Advanced Prompt Engineering', priority: 'High', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
-                      { skill: 'AI Model Fine-tuning', priority: 'Medium', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
-                      { skill: 'AI Ethics & Governance', priority: 'High', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' }
-                    ].map((item, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <span className="font-medium text-gray-900 dark:text-white">{item.skill}</span>
-                        <Badge className={item.color}>{item.priority}</Badge>
-                      </div>
-                    ))}
-                  </div>
+                  {userMetrics.skillsLearned.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {userMetrics.skillsLearned.map((skill, index) => (
+                        <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">
+                        Complete an assessment to add skills to your profile
+                      </p>
+                      <Link href="/assessment/form">
+                        <Button className="mt-4 bg-blue-600 hover:bg-blue-700">
+                          Take Assessment
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
@@ -803,27 +919,68 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {[
-                      { action: 'Completed AI Impact Assessment', time: '2 hours ago', icon: Brain, color: 'text-blue-600' },
-                      { action: 'Earned Community NFT', time: '1 day ago', icon: Award, color: 'text-yellow-600' },
-                      { action: 'Posted in Community Hub', time: '2 days ago', icon: Users, color: 'text-green-600' },
-                      { action: 'Updated Skills Profile', time: '3 days ago', icon: BookOpen, color: 'text-purple-600' },
-                      { action: 'Joined AI Impact Navigator', time: '1 week ago', icon: Star, color: 'text-indigo-600' }
-                    ].map((activity, index) => {
-                      const Icon = activity.icon
-                      return (
-                        <div key={index} className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                          <div className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-800 ${activity.color}`}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900 dark:text-white">{activity.action}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{activity.time}</p>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-gray-400" />
+                    {userMetrics.assessmentsCompleted > 0 && (
+                      <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                        <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-blue-600">
+                          <Brain className="w-5 h-5" />
                         </div>
-                      )
-                    })}
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">Completed AI Impact Assessment</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Generated personalized predictions</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    
+                    {userMetrics.nftsEarned > 0 && (
+                      <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                        <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-yellow-600">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">Earned Community NFT</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Algorand blockchain verified</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    
+                    {userMetrics.communityContributions > 0 && (
+                      <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                        <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-green-600">
+                          <Users className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">Posted in Community Hub</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{userMetrics.totalVotes} votes received</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    
+                    {userMetrics.skillsLearned.length > 0 && (
+                      <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                        <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-purple-600">
+                          <BookOpen className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">Updated Skills Profile</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{userMetrics.skillsLearned.length} skills added</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-4 p-3 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                      <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-indigo-600">
+                        <Star className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white">Joined AI Impact Navigator</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Welcome to the community!</p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -838,7 +995,7 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Link href="/assessment">
+                    <Link href="/assessment/form">
                       <Button className="w-full h-16 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
                         <div className="text-center">
                           <Brain className="w-6 h-6 mx-auto mb-1" />

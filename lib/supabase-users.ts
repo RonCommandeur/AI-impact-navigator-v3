@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { triggerMetricsUpdate } from './supabase-metrics'
 import type { User } from '@supabase/supabase-js'
 
 export interface UserProfile {
@@ -52,6 +53,9 @@ export async function saveUserProfile(authUser: User, formData: UserFormData): P
       console.error('Supabase error:', error)
       return { success: false, error: 'Failed to save profile. Please try again.' }
     }
+
+    // Trigger metrics update in the background
+    triggerMetricsUpdate(authUser.id)
 
     return { success: true }
   } catch (error) {
