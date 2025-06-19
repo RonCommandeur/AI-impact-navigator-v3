@@ -8,6 +8,7 @@ import { Brain, Users, TrendingUp, Zap, ArrowRight, Sparkles, History, User } fr
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Footer } from '@/components/footer'
+import { Navigation } from '@/components/navigation'
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -23,33 +24,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
       {/* Navigation */}
-      <nav className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Brain className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              AI Impact Navigator
-            </span>
-          </div>
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/assessment" className="text-gray-600 hover:text-blue-600 transition-colors">
-              Assessment
-            </Link>
-            <Link href="/assessments" className="text-gray-600 hover:text-blue-600 transition-colors">
-              My Assessments
-            </Link>
-            <Link href="/community" className="text-gray-600 hover:text-blue-600 transition-colors">
-              Community
-            </Link>
-            <Link href="/my-contributions" className="text-gray-600 hover:text-blue-600 transition-colors">
-              My Contributions
-            </Link>
-            <Link href="/dashboard" className="text-gray-600 hover:text-blue-600 transition-colors">
-              Dashboard
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-12 sm:py-20 flex-grow">
@@ -73,7 +48,7 @@ export default function Home() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
-            <Link href="/assessment">
+            <Link href="/assessment/form">
               <Button size="lg" className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3">
                 Start AI Assessment
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -107,7 +82,7 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/assessment">
+              <Link href="/assessment/form">
                 <Button variant="ghost" className="w-full justify-between group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
                   Start Assessment
                   <ArrowRight className="w-4 h-4" />
@@ -215,7 +190,7 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/assessment">
+              <Link href="/assessment/form">
                 <Button variant="ghost" className="w-full justify-between group-hover:bg-pink-50 dark:group-hover:bg-pink-900/20">
                   Explore AI
                   <ArrowRight className="w-4 h-4" />
@@ -242,7 +217,7 @@ export default function Home() {
             </CardHeader>
             <CardContent className="text-center">
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/assessment">
+                <Link href="/assessment/form">
                   <Button size="lg" variant="secondary" className="w-full sm:w-auto px-8 py-3">
                     Start Your Journey
                     <Zap className="w-5 h-5 ml-2" />

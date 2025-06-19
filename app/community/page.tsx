@@ -9,12 +9,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Users, ArrowLeft, Plus, ThumbsUp, Award, Sparkles, MessageCircle, Share2, Loader2, User, LogOut, Coins } from 'lucide-react'
-import Link from 'next/link'
+import { Users, Plus, ThumbsUp, Award, Sparkles, MessageCircle, Share2, Loader2, User, LogOut, Coins } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Footer } from '@/components/footer'
+import { Navigation } from '@/components/navigation'
 import { 
   createContribution, 
   getContributions, 
@@ -101,19 +101,6 @@ export default function CommunityPage() {
     } catch (error) {
       toast.error('An error occurred during sign in')
       console.error('Sign in error:', error)
-    }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        toast.error('Failed to sign out')
-      } else {
-        toast.success('Signed out successfully')
-      }
-    } catch (error) {
-      toast.error('An error occurred during sign out')
     }
   }
 
@@ -266,39 +253,7 @@ export default function CommunityPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
       {/* Navigation */}
-      <nav className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2 text-gray-600 hover:text-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 rounded-md p-1">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="hidden sm:inline">Back to Home</span>
-            <span className="sm:hidden">Back</span>
-          </Link>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Users className="w-6 h-6 text-green-600" />
-              <span className="font-semibold hidden sm:inline">Community Hub</span>
-              <span className="font-semibold sm:hidden">Community</span>
-            </div>
-            {user && (
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                  <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">{user.email}</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSignOut}
-                  className="focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="sr-only">Sign out</span>
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Navigation />
 
       <div className="container mx-auto px-4 py-4 sm:py-8 flex-grow">
         {/* Header */}

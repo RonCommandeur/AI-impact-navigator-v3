@@ -7,16 +7,12 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { 
   TrendingUp, 
-  ArrowLeft, 
   Brain, 
   Users, 
   Award, 
   Target, 
   BookOpen, 
   Zap, 
-  Menu,
-  X,
-  ChevronRight,
   Activity,
   BarChart3,
   PieChart,
@@ -27,15 +23,9 @@ import {
   User,
   LogOut,
   RefreshCw,
-  Globe,
-  Building,
-  DollarSign,
-  Home,
-  Lightbulb,
   Wifi,
   WifiOff
 } from 'lucide-react'
-import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bar, Doughnut, Line } from 'react-chartjs-2'
 import {
@@ -52,9 +42,10 @@ import {
   Filler,
 } from 'chart.js'
 import { Footer } from '@/components/footer'
+import { Navigation } from '@/components/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserMetrics, updateUserMetrics, triggerMetricsUpdate, type UserMetrics } from '@/lib/supabase-metrics'
-import { getUserTrendData, getGlobalTrendData, formatTrendValue, getTrendInsights, updateUserTrendData, type TrendData } from '@/lib/supabase-trends'
+import { getUserTrendData, updateUserTrendData, type TrendData } from '@/lib/supabase-trends'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -75,10 +66,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [refreshingTrends, setRefreshingTrends] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'skills' | 'trends' | 'activity'>('overview')
-  const [trendData, setTrendData] = useState<TrendData | null>(null)
-  const [trendLoading, setTrendLoading] = useState(false)
   const [userMetrics, setUserMetrics] = useState<UserMetrics>({
     skillsLearned: [],
     assessmentsCompleted: 0,
@@ -96,6 +85,8 @@ export default function DashboardPage() {
     ]
   })
 
+  const [trendData, setTrendData] = useState<TrendData | null>(null)
+
   // Check authentication status and load metrics
   useEffect(() => {
     const getSession = async () => {
@@ -103,10 +94,11 @@ export default function DashboardPage() {
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        await loadUserData(session.user.id)
-      } else {
-        setLoading(false)
+        await loadUserMetrics(session.user.id)
+        await loadTrendData(session.user.id)
       }
+      
+      setLoading(false)
     }
 
     getSession()
@@ -116,7 +108,8 @@ export default function DashboardPage() {
         setUser(session?.user ?? null)
         if (event === 'SIGNED_IN' && session?.user) {
           toast.success('Successfully signed in!')
-          await loadUserData(session.user.id)
+          await loadUserMetrics(session.user.id)
+          await loadTrendData(session.user.id)
         } else if (event === 'SIGNED_OUT') {
           // Reset metrics to default
           setUserMetrics({
@@ -143,36 +136,39 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const loadUserData = async (authUserId: string) => {
+  const loadUserMetrics = async (authUserId: string) => {
     try {
-      // Load user metrics
-      const { data: metrics, error: metricsError } = await getUserMetrics(authUserId)
+      const { data, error } = await getUserMetrics(authUserId)
       
-      if (metricsError) {
-        console.error('Error loading metrics:', metricsError)
+      if (error) {
+        console.error('Error loading metrics:', error)
         toast.error('Failed to load dashboard metrics')
-      } else if (metrics) {
-        setUserMetrics(metrics)
+        return
       }
 
-      // Load trend data with Grok API integration
-      setTrendLoading(true)
-      const { data: trends, error: trendsError } = await getUserTrendData(authUserId)
-      
-      if (trendsError) {
-        console.error('Error loading trends:', trendsError)
-        // Don't show error for trends, fall back to global data
-        const { data: globalTrends } = await getGlobalTrendData()
-        setTrendData(globalTrends)
-      } else {
-        setTrendData(trends)
+      if (data) {
+        setUserMetrics(data)
       }
     } catch (error) {
-      console.error('Error loading user data:', error)
-      toast.error('Failed to load dashboard data')
-    } finally {
-      setLoading(false)
-      setTrendLoading(false)
+      console.error('Error loading metrics:', error)
+      toast.error('Failed to load dashboard metrics')
+    }
+  }
+
+  const loadTrendData = async (authUserId: string) => {
+    try {
+      const { data, error } = await getUserTrendData(authUserId)
+      
+      if (error) {
+        console.error('Error loading trend data:', error)
+        // Don't show error toast for trends as it's not critical
+      }
+
+      if (data) {
+        setTrendData(data)
+      }
+    } catch (error) {
+      console.error('Error loading trend data:', error)
     }
   }
 
@@ -190,8 +186,8 @@ export default function DashboardPage() {
         return
       }
 
-      // Reload data
-      await loadUserData(user.id)
+      // Reload metrics
+      await loadUserMetrics(user.id)
       toast.success('Metrics refreshed successfully!')
       
     } catch (error) {
@@ -206,10 +202,9 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
-      setTrendLoading(true)
-      toast.info('Fetching latest trend data from Grok API...')
+      setRefreshingTrends(true)
       
-      // Force refresh trend data from Grok API
+      // Update trend data (triggers Grok API call)
       const { success, error } = await updateUserTrendData(user.id)
       
       if (!success) {
@@ -218,29 +213,14 @@ export default function DashboardPage() {
       }
 
       // Reload trend data
-      const { data: trends } = await getUserTrendData(user.id)
-      setTrendData(trends)
-      
+      await loadTrendData(user.id)
       toast.success('Trend data refreshed successfully!')
       
     } catch (error) {
       console.error('Error refreshing trends:', error)
       toast.error('Failed to refresh trend data')
     } finally {
-      setTrendLoading(false)
-    }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        toast.error('Failed to sign out')
-      } else {
-        toast.success('Signed out successfully')
-      }
-    } catch (error) {
-      toast.error('An error occurred during sign out')
+      setRefreshingTrends(false)
     }
   }
 
@@ -305,67 +285,27 @@ export default function DashboardPage() {
     ]
   }
 
-  // Trend chart data
+  // Trend charts
   const trendChartData = trendData ? {
     labels: trendData.monthly_trends.map(t => t.month),
     datasets: [
       {
         label: 'Job Growth (%)',
         data: trendData.monthly_trends.map(t => t.job_growth),
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
         borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
         borderWidth: 3,
         fill: true,
         tension: 0.4,
-        pointBackgroundColor: 'rgb(34, 197, 94)',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
       },
       {
         label: 'Skill Demand (%)',
         data: trendData.monthly_trends.map(t => t.skill_demand),
-        backgroundColor: 'rgba(168, 85, 247, 0.1)',
-        borderColor: 'rgb(168, 85, 247)',
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderWidth: 3,
         fill: true,
         tension: 0.4,
-        pointBackgroundColor: 'rgb(168, 85, 247)',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      }
-    ]
-  } : null
-
-  // Industry adoption chart
-  const industryChartData = trendData ? {
-    labels: trendData.industry_adoption.map(i => i.industry),
-    datasets: [
-      {
-        label: 'Adoption Rate (%)',
-        data: trendData.industry_adoption.map(i => i.adoption_rate),
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.9)',
-          'rgba(16, 185, 129, 0.9)',
-          'rgba(139, 92, 246, 0.9)',
-          'rgba(245, 158, 11, 0.9)',
-          'rgba(239, 68, 68, 0.9)',
-          'rgba(6, 182, 212, 0.9)'
-        ],
-        borderColor: [
-          'rgb(59, 130, 246)',
-          'rgb(16, 185, 129)',
-          'rgb(139, 92, 246)',
-          'rgb(245, 158, 11)',
-          'rgb(239, 68, 68)',
-          'rgb(6, 182, 212)'
-        ],
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
       }
     ]
   } : null
@@ -447,17 +387,7 @@ export default function DashboardPage() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: true,
-        position: 'top' as const,
-        labels: {
-          color: '#6b7280',
-          font: {
-            size: 12,
-            weight: '500'
-          },
-          usePointStyle: true,
-          pointStyle: 'circle'
-        }
+        display: false,
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -531,12 +461,7 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
-        <nav className="container mx-auto px-4 py-6">
-          <Link href="/" className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Home</span>
-          </Link>
-        </nav>
+        <Navigation />
         <div className="flex-grow flex items-center justify-center px-4">
           <Card className="max-w-md mx-auto border-0 shadow-xl bg-white dark:bg-slate-800">
             <CardContent className="text-center p-8">
@@ -562,115 +487,70 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
-      {/* Mobile Navigation Header */}
-      <nav className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            {/* Left side - Back button and title */}
-            <div className="flex items-center space-x-3">
-              <Link href="/" className="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              </Link>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">AI Progress Insights</p>
-              </div>
-            </div>
+      {/* Navigation */}
+      <Navigation />
 
-            {/* Right side - User menu and refresh */}
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefreshMetrics}
-                disabled={refreshing}
-                className="p-2"
-              >
-                <RefreshCw className={`w-4 h-4 text-gray-600 dark:text-gray-300 ${refreshing ? 'animate-spin' : ''}`} />
-              </Button>
-              {user && (
-                <>
-                  <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                    <User className="w-4 h-4" />
-                    <span className="font-medium">{user.email?.split('@')[0]}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSignOut}
-                    className="p-2"
-                  >
-                    <LogOut className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 lg:hidden"
-              >
-                {mobileMenuOpen ? (
-                  <X className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                ) : (
-                  <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                )}
-              </Button>
-            </div>
+      {/* Dashboard Header */}
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              AI Progress Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-1">
+              Track your AI adaptation journey with real-time insights
+            </p>
           </div>
-
-          {/* Mobile Tab Navigation */}
-          <div className="mt-3 flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              )
-            })}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshMetrics}
+              disabled={refreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
+            {trendData && (
+              <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                {trendData.source === 'grok_api' ? (
+                  <Wifi className="w-3 h-3 text-green-500" />
+                ) : (
+                  <WifiOff className="w-3 h-3 text-orange-500" />
+                )}
+                <span className="hidden sm:inline">
+                  {trendData.source === 'grok_api' ? 'Live Data' : 'Fallback Data'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Mobile Menu Overlay */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900"
-            >
-              <div className="px-4 py-3 space-y-2">
-                <Link href="/assessment/form" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <Brain className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-gray-900 dark:text-white">New Assessment</span>
-                </Link>
-                <Link href="/community" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <Users className="w-5 h-5 text-green-600" />
-                  <span className="font-medium text-gray-900 dark:text-white">Community</span>
-                </Link>
-                <Link href="/assessments" className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                  <Clock className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium text-gray-900 dark:text-white">My Assessments</span>
-                </Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
+        {/* Tab Navigation */}
+        <div className="mt-6 flex gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex-1 flex items-center justify-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 px-4 py-6 space-y-6">
+      <div className="flex-1 container mx-auto px-4 pb-8">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
             <motion.div
@@ -908,257 +788,131 @@ export default function DashboardPage() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Trends Header with Refresh */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Market Trends</h2>
-                  <p className="text-gray-600 dark:text-gray-300">AI-powered insights from Grok API</p>
-                </div>
-                <Button
-                  onClick={handleRefreshTrends}
-                  disabled={trendLoading}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  {trendLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                  Refresh Trends
-                </Button>
-              </div>
-
-              {/* Data Source Indicator */}
+              {/* Trend Data Source Indicator */}
               {trendData && (
                 <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         {trendData.source === 'grok_api' ? (
-                          <>
-                            <Wifi className="w-5 h-5 text-green-600" />
-                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                              Live data from Grok API
-                            </span>
-                          </>
+                          <Wifi className="w-5 h-5 text-green-500" />
                         ) : (
-                          <>
-                            <WifiOff className="w-5 h-5 text-orange-600" />
-                            <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
-                              Using fallback data (API unavailable)
-                            </span>
-                          </>
+                          <WifiOff className="w-5 h-5 text-orange-500" />
                         )}
-                      </div>
-                      {trendData.confidence_score && (
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          Confidence: {Math.round(trendData.confidence_score * 100)}%
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {trendData.source === 'grok_api' ? 'Live AI Analysis' : 'Market Estimates'}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {trendData.source === 'grok_api' 
+                              ? 'Real-time insights from Grok API' 
+                              : 'Using fallback market data'
+                            }
+                          </p>
                         </div>
-                      )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRefreshTrends}
+                        disabled={refreshingTrends}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${refreshingTrends ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
-              {/* Market Trends Overview */}
+              {/* Market Overview */}
               {trendData && (
-                <>
-                  {/* Key Metrics Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Card className="border-0 shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-green-100 text-sm font-medium">Job Market</p>
-                            <p className="text-2xl font-bold">{formatTrendValue(trendData.job_shifts).text.split(' ')[0]}</p>
-                            <p className="text-green-100 text-sm">Growth this quarter</p>
-                          </div>
-                          <TrendingUp className="w-12 h-12 text-green-200" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="border-0 shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-green-100 text-sm font-medium">Job Market</p>
+                          <p className="text-2xl font-bold">{trendData.job_shifts}</p>
+                          <p className="text-green-100 text-sm">Current quarter</p>
                         </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-purple-100 text-sm font-medium">Skill Demand</p>
-                            <p className="text-2xl font-bold">{formatTrendValue(trendData.skill_demand).text.split(' ')[0]}</p>
-                            <p className="text-purple-100 text-sm">AI skills growth</p>
-                          </div>
-                          <Brain className="w-12 h-12 text-purple-200" />
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-blue-100 text-sm font-medium">Remote Work</p>
-                            <p className="text-2xl font-bold">{formatTrendValue(trendData.remote_work).text.split(' ')[0]}</p>
-                            <p className="text-blue-100 text-sm">AI jobs remote</p>
-                          </div>
-                          <Home className="w-12 h-12 text-blue-200" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Trend Charts */}
-                  <div className="grid lg:grid-cols-2 gap-6">
-                    {/* Monthly Trends Chart */}
-                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                          <BarChart3 className="w-5 h-5 text-green-600" />
-                          Market Trends
-                        </CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">
-                          Job growth and skill demand over time
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-64">
-                          {trendChartData && <Line data={trendChartData} options={lineOptions} />}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Industry Adoption Chart */}
-                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                          <Building className="w-5 h-5 text-purple-600" />
-                          Industry Adoption
-                        </CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">
-                          AI adoption rates by industry
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-64">
-                          {industryChartData && <Bar data={industryChartData} options={chartOptions} />}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Trend Insights */}
-                  <div className="grid lg:grid-cols-2 gap-6">
-                    {/* Market Insights */}
-                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                          <Globe className="w-5 h-5 text-blue-600" />
-                          Market Insights
-                        </CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">
-                          Key trends and opportunities
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                            <TrendingUp className="w-5 h-5 text-green-600 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">Job Growth</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-300">{trendData.job_shifts}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                            <Brain className="w-5 h-5 text-purple-600 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">Skill Demand</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-300">{trendData.skill_demand}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">Salary Trends</p>
-                              <p className="text-sm text-gray-600 dark:text-gray-300">{trendData.salary_trends}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Personalized Insights */}
-                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                          <Lightbulb className="w-5 h-5 text-yellow-600" />
-                          Insights for You
-                        </CardTitle>
-                        <CardDescription className="text-gray-600 dark:text-gray-400">
-                          Personalized recommendations based on trends
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-3">
-                          {getTrendInsights(trendData, userMetrics.skillsLearned).map((insight, index) => (
-                            <div key={index} className="flex items-start gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                              <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0" />
-                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Last Updated */}
-                  <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4" />
-                          <span>Last updated: {new Date(trendData.last_updated).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4" />
-                          <span>
-                            {trendData.source === 'grok_api' ? 'Grok API data' : 'Market estimates'}
-                          </span>
-                        </div>
+                        <TrendingUp className="w-12 h-12 text-green-200" />
                       </div>
                     </CardContent>
                   </Card>
-                </>
+
+                  <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-blue-100 text-sm font-medium">Skill Demand</p>
+                          <p className="text-2xl font-bold">{trendData.skill_demand}</p>
+                          <p className="text-blue-100 text-sm">Growth rate</p>
+                        </div>
+                        <Brain className="w-12 h-12 text-blue-200" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
 
-              {!trendData && (
+              {/* Trend Chart */}
+              {trendData && trendChartData && (
                 <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                  <CardContent className="text-center p-12">
-                    {trendLoading ? (
-                      <>
-                        <Loader2 className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                          Fetching Trend Data
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-300">
-                          Getting the latest insights from Grok API...
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-purple-600" />
+                      Market Trends
+                    </CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Job growth and skill demand over time
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-64">
+                      <Line data={trendChartData} options={lineOptions} />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Market Insights */}
+              {trendData && (
+                <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="text-lg font-bold text-gray-900 dark:text-white">Market Insights</CardTitle>
+                    <CardDescription className="text-gray-600 dark:text-gray-400">
+                      Latest trends and opportunities in AI
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4">
+                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                          Market Outlook
+                        </h4>
+                        <p className="text-gray-700 dark:text-gray-300 text-sm">
+                          {trendData.market_outlook}
                         </p>
-                      </>
-                    ) : (
-                      <>
-                        <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                          No Trend Data Available
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-300 mb-4">
-                          Unable to load market trends at this time.
+                      </div>
+                      <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <h4 className="font-semibold text-green-700 dark:text-green-300 mb-2">
+                          Salary Trends
+                        </h4>
+                        <p className="text-gray-700 dark:text-gray-300 text-sm">
+                          {trendData.salary_trends}
                         </p>
-                        <Button onClick={handleRefreshTrends} className="bg-blue-600 hover:bg-blue-700">
-                          Try Again
-                        </Button>
-                      </>
-                    )}
+                      </div>
+                      <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                        <h4 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">
+                          Remote Work
+                        </h4>
+                        <p className="text-gray-700 dark:text-gray-300 text-sm">
+                          {trendData.remote_work}
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -1195,7 +949,6 @@ export default function DashboardPage() {
                           <p className="font-medium text-gray-900 dark:text-white">Completed AI Impact Assessment</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">Generated personalized predictions</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
                     
@@ -1208,7 +961,6 @@ export default function DashboardPage() {
                           <p className="font-medium text-gray-900 dark:text-white">Earned Community NFT</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">Algorand blockchain verified</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
                     
@@ -1221,7 +973,6 @@ export default function DashboardPage() {
                           <p className="font-medium text-gray-900 dark:text-white">Posted in Community Hub</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{userMetrics.totalVotes} votes received</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
                     
@@ -1234,7 +985,6 @@ export default function DashboardPage() {
                           <p className="font-medium text-gray-900 dark:text-white">Updated Skills Profile</p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{userMetrics.skillsLearned.length} skills added</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
 
@@ -1246,7 +996,6 @@ export default function DashboardPage() {
                         <p className="font-medium text-gray-900 dark:text-white">Joined AI Impact Navigator</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Welcome to the community!</p>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
                     </div>
                   </div>
                 </CardContent>
