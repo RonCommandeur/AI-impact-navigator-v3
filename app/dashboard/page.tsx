@@ -31,7 +31,9 @@ import {
   Building,
   DollarSign,
   Home,
-  Lightbulb
+  Lightbulb,
+  Wifi,
+  WifiOff
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -52,7 +54,7 @@ import {
 import { Footer } from '@/components/footer'
 import { supabase } from '@/lib/supabase'
 import { getUserMetrics, updateUserMetrics, triggerMetricsUpdate, type UserMetrics } from '@/lib/supabase-metrics'
-import { getUserTrendData, getGlobalTrendData, formatTrendValue, getTrendInsights, type TrendData } from '@/lib/supabase-trends'
+import { getUserTrendData, getGlobalTrendData, formatTrendValue, getTrendInsights, updateUserTrendData, type TrendData } from '@/lib/supabase-trends'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -76,6 +78,7 @@ export default function DashboardPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'skills' | 'trends' | 'activity'>('overview')
   const [trendData, setTrendData] = useState<TrendData | null>(null)
+  const [trendLoading, setTrendLoading] = useState(false)
   const [userMetrics, setUserMetrics] = useState<UserMetrics>({
     skillsLearned: [],
     assessmentsCompleted: 0,
@@ -101,9 +104,9 @@ export default function DashboardPage() {
       
       if (session?.user) {
         await loadUserData(session.user.id)
+      } else {
+        setLoading(false)
       }
-      
-      setLoading(false)
     }
 
     getSession()
@@ -152,7 +155,8 @@ export default function DashboardPage() {
         setUserMetrics(metrics)
       }
 
-      // Load trend data
+      // Load trend data with Grok API integration
+      setTrendLoading(true)
       const { data: trends, error: trendsError } = await getUserTrendData(authUserId)
       
       if (trendsError) {
@@ -166,6 +170,9 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error loading user data:', error)
       toast.error('Failed to load dashboard data')
+    } finally {
+      setLoading(false)
+      setTrendLoading(false)
     }
   }
 
@@ -192,6 +199,35 @@ export default function DashboardPage() {
       toast.error('Failed to refresh metrics')
     } finally {
       setRefreshing(false)
+    }
+  }
+
+  const handleRefreshTrends = async () => {
+    if (!user) return
+
+    try {
+      setTrendLoading(true)
+      toast.info('Fetching latest trend data from Grok API...')
+      
+      // Force refresh trend data from Grok API
+      const { success, error } = await updateUserTrendData(user.id)
+      
+      if (!success) {
+        toast.error(error || 'Failed to refresh trend data')
+        return
+      }
+
+      // Reload trend data
+      const { data: trends } = await getUserTrendData(user.id)
+      setTrendData(trends)
+      
+      toast.success('Trend data refreshed successfully!')
+      
+    } catch (error) {
+      console.error('Error refreshing trends:', error)
+      toast.error('Failed to refresh trend data')
+    } finally {
+      setTrendLoading(false)
     }
   }
 
@@ -872,6 +908,60 @@ export default function DashboardPage() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
+              {/* Trends Header with Refresh */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Market Trends</h2>
+                  <p className="text-gray-600 dark:text-gray-300">AI-powered insights from Grok API</p>
+                </div>
+                <Button
+                  onClick={handleRefreshTrends}
+                  disabled={trendLoading}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {trendLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Refresh Trends
+                </Button>
+              </div>
+
+              {/* Data Source Indicator */}
+              {trendData && (
+                <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {trendData.source === 'grok_api' ? (
+                          <>
+                            <Wifi className="w-5 h-5 text-green-600" />
+                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                              Live data from Grok API
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <WifiOff className="w-5 h-5 text-orange-600" />
+                            <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
+                              Using fallback data (API unavailable)
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {trendData.confidence_score && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          Confidence: {Math.round(trendData.confidence_score * 100)}%
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Market Trends Overview */}
               {trendData && (
                 <>
@@ -1032,7 +1122,9 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Globe className="w-4 h-4" />
-                          <span>Global market data</span>
+                          <span>
+                            {trendData.source === 'grok_api' ? 'Grok API data' : 'Market estimates'}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
@@ -1043,13 +1135,30 @@ export default function DashboardPage() {
               {!trendData && (
                 <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                   <CardContent className="text-center p-12">
-                    <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      Loading Trend Data
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      Fetching the latest market insights and trends...
-                    </p>
+                    {trendLoading ? (
+                      <>
+                        <Loader2 className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                          Fetching Trend Data
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300">
+                          Getting the latest insights from Grok API...
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                          No Trend Data Available
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-4">
+                          Unable to load market trends at this time.
+                        </p>
+                        <Button onClick={handleRefreshTrends} className="bg-blue-600 hover:bg-blue-700">
+                          Try Again
+                        </Button>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               )}

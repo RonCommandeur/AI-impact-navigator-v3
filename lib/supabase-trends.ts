@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { getTrendAnalysisWithFallback } from './grok-api'
 
 export interface TrendData {
   job_shifts: string
@@ -17,6 +18,8 @@ export interface TrendData {
     skill_demand: number
   }>
   last_updated: string
+  source?: 'grok_api' | 'fallback' | 'database'
+  confidence_score?: number
 }
 
 export interface TrendMetrics {
@@ -24,107 +27,168 @@ export interface TrendMetrics {
   error?: string
 }
 
-// Get trend data for a specific user
+// Get trend data for a specific user (with Grok API integration)
 export async function getUserTrendData(authUserId: string): Promise<TrendMetrics> {
   try {
-    const { data, error } = await supabase
+    // First, try to get existing trend data from database
+    const { data: existingData, error } = await supabase
       .from('user_metrics')
-      .select('trend_data')
+      .select('trend_data, updated_at')
       .eq('auth_user_id', authUserId)
       .single()
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Get trend data error:', error)
-      return { data: null, error: 'Failed to load trend data' }
-    }
+    // Check if we have recent data (less than 1 hour old)
+    const isDataFresh = existingData?.updated_at && 
+      (new Date().getTime() - new Date(existingData.updated_at).getTime()) < 3600000 // 1 hour
 
-    // If no trend data found, return default/sample data
-    if (!data?.trend_data) {
+    if (existingData?.trend_data && isDataFresh) {
+      console.log('Using cached trend data from database')
       return { 
         data: {
-          job_shifts: "28% increase in AI-related positions",
-          skill_demand: "156% growth in AI skill requirements",
-          automation_risk: "32% of tasks may be automated",
-          market_outlook: "Positive growth trajectory in AI adoption",
-          salary_trends: "12% average salary increase for AI skills",
-          remote_work: "78% of AI jobs offer remote options",
-          industry_adoption: [
-            { industry: 'Technology', adoption_rate: 92 },
-            { industry: 'Healthcare', adoption_rate: 58 },
-            { industry: 'Finance', adoption_rate: 76 },
-            { industry: 'Education', adoption_rate: 45 },
-            { industry: 'Manufacturing', adoption_rate: 63 }
-          ],
-          monthly_trends: [
-            { month: 'Jan 2025', job_growth: 12, skill_demand: 85 },
-            { month: 'Feb 2025', job_growth: 15, skill_demand: 92 },
-            { month: 'Mar 2025', job_growth: 18, skill_demand: 98 },
-            { month: 'Apr 2025', job_growth: 22, skill_demand: 105 },
-            { month: 'May 2025', job_growth: 25, skill_demand: 112 },
-            { month: 'Jun 2025', job_growth: 28, skill_demand: 156 }
-          ],
-          last_updated: new Date().toISOString()
+          ...existingData.trend_data,
+          source: 'database'
+        } as TrendData 
+      }
+    }
+
+    // If no fresh data, fetch new trends from Grok API
+    console.log('Fetching fresh trend data from Grok API...')
+    const { data: freshTrendData, source, error: grokError } = await getTrendAnalysisWithFallback()
+
+    if (freshTrendData) {
+      // Store the new trend data in the database
+      await updateUserTrendDataInDB(authUserId, freshTrendData)
+      
+      return { 
+        data: {
+          ...freshTrendData,
+          source
         }
       }
     }
 
-    return { data: data.trend_data as TrendData }
+    // If everything fails, return fallback data
+    return { 
+      data: getFallbackTrendData(),
+      error: grokError || 'Failed to fetch trend data'
+    }
+
   } catch (error) {
     console.error('Get trend data error:', error)
-    return { data: null, error: 'An unexpected error occurred' }
+    return { 
+      data: getFallbackTrendData(),
+      error: 'An unexpected error occurred'
+    }
   }
 }
 
-// Get global trend data (aggregated from all users)
+// Update trend data in database
+async function updateUserTrendDataInDB(authUserId: string, trendData: any): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('user_metrics')
+      .upsert({
+        auth_user_id: authUserId,
+        trend_data: trendData,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'auth_user_id'
+      })
+
+    if (error) {
+      console.error('Failed to update trend data in database:', error)
+    } else {
+      console.log('Successfully updated trend data in database')
+    }
+  } catch (error) {
+    console.error('Error updating trend data:', error)
+  }
+}
+
+// Get global trend data (with Grok API integration)
 export async function getGlobalTrendData(): Promise<TrendMetrics> {
   try {
-    // For now, return sample global data
-    // In production, this could aggregate data from multiple sources
-    return {
-      data: {
-        job_shifts: "35% increase in AI-related job postings globally",
-        skill_demand: "180% growth in demand for AI skills",
-        automation_risk: "28% average automation risk across industries",
-        market_outlook: "Strong growth expected through 2025-2026",
-        salary_trends: "15% average salary premium for AI expertise",
-        remote_work: "82% of AI positions offer flexible work arrangements",
-        industry_adoption: [
-          { industry: 'Technology', adoption_rate: 95 },
-          { industry: 'Finance', adoption_rate: 78 },
-          { industry: 'Healthcare', adoption_rate: 62 },
-          { industry: 'Education', adoption_rate: 48 },
-          { industry: 'Manufacturing', adoption_rate: 67 },
-          { industry: 'Retail', adoption_rate: 55 }
-        ],
-        monthly_trends: [
-          { month: 'Jan 2025', job_growth: 18, skill_demand: 95 },
-          { month: 'Feb 2025', job_growth: 22, skill_demand: 108 },
-          { month: 'Mar 2025', job_growth: 26, skill_demand: 125 },
-          { month: 'Apr 2025', job_growth: 30, skill_demand: 142 },
-          { month: 'May 2025', job_growth: 33, skill_demand: 165 },
-          { month: 'Jun 2025', job_growth: 35, skill_demand: 180 }
-        ],
-        last_updated: new Date().toISOString()
+    // For global data, we'll use Grok API directly
+    console.log('Fetching global trend data from Grok API...')
+    const { data: trendData, source, error: grokError } = await getTrendAnalysisWithFallback()
+
+    if (trendData) {
+      return { 
+        data: {
+          ...trendData,
+          source
+        }
       }
+    }
+
+    return { 
+      data: getFallbackTrendData(),
+      error: grokError || 'Failed to fetch global trend data'
     }
   } catch (error) {
     console.error('Get global trend data error:', error)
-    return { data: null, error: 'Failed to load global trend data' }
+    return { 
+      data: getFallbackTrendData(),
+      error: 'Failed to load global trend data'
+    }
   }
 }
 
-// Update trend data for a user (triggers recalculation)
+// Fallback trend data when all else fails
+function getFallbackTrendData(): TrendData {
+  return {
+    job_shifts: "28% increase in AI-related positions",
+    skill_demand: "156% growth in AI skill requirements",
+    automation_risk: "32% of tasks may be automated",
+    market_outlook: "Positive growth trajectory in AI adoption",
+    salary_trends: "12% average salary increase for AI skills",
+    remote_work: "78% of AI jobs offer remote options",
+    industry_adoption: [
+      { industry: 'Technology', adoption_rate: 92 },
+      { industry: 'Healthcare', adoption_rate: 58 },
+      { industry: 'Finance', adoption_rate: 76 },
+      { industry: 'Education', adoption_rate: 45 },
+      { industry: 'Manufacturing', adoption_rate: 63 }
+    ],
+    monthly_trends: [
+      { month: 'Jan 2025', job_growth: 12, skill_demand: 85 },
+      { month: 'Feb 2025', job_growth: 15, skill_demand: 92 },
+      { month: 'Mar 2025', job_growth: 18, skill_demand: 98 },
+      { month: 'Apr 2025', job_growth: 22, skill_demand: 105 },
+      { month: 'May 2025', job_growth: 25, skill_demand: 112 },
+      { month: 'Jun 2025', job_growth: 28, skill_demand: 156 }
+    ],
+    last_updated: new Date().toISOString(),
+    source: 'fallback',
+    confidence_score: 0.75
+  }
+}
+
+// Update trend data for a user (triggers Grok API call)
 export async function updateUserTrendData(authUserId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.rpc('update_user_metrics_with_trends', {
+    console.log('Updating trend data for user:', authUserId)
+    
+    // Fetch fresh trend data from Grok API
+    const { data: trendData, source, error: grokError } = await getTrendAnalysisWithFallback()
+
+    if (!trendData) {
+      return { success: false, error: grokError || 'Failed to fetch trend data' }
+    }
+
+    // Update in database
+    await updateUserTrendDataInDB(authUserId, trendData)
+
+    // Also update the user metrics with the new trend data
+    const { error: metricsError } = await supabase.rpc('update_user_metrics_with_trends', {
       user_id: authUserId
     })
 
-    if (error) {
-      console.error('Update trend data error:', error)
-      return { success: false, error: 'Failed to update trend data' }
+    if (metricsError) {
+      console.error('Failed to update user metrics:', metricsError)
     }
 
+    console.log(`Successfully updated trend data from ${source}`)
     return { success: true }
   } catch (error) {
     console.error('Update trend data error:', error)
@@ -149,6 +213,13 @@ export function formatTrendValue(value: string): { text: string; isPositive: boo
 // Get trend insights based on user data
 export function getTrendInsights(trendData: TrendData, userSkills: string[]): string[] {
   const insights: string[] = []
+  
+  // Add source indicator
+  if (trendData.source === 'grok_api') {
+    insights.push('🤖 Real-time AI analysis from Grok API')
+  } else if (trendData.source === 'fallback') {
+    insights.push('📊 Using market trend estimates (API unavailable)')
+  }
   
   // Job market insights
   if (trendData.job_shifts.includes('increase')) {
@@ -178,5 +249,40 @@ export function getTrendInsights(trendData: TrendData, userSkills: string[]): st
   )
   insights.push(`🏢 ${topIndustry.industry} leads in AI adoption at ${topIndustry.adoption_rate}%`)
   
-  return insights.slice(0, 4) // Return top 4 insights
+  // Confidence score insight
+  if (trendData.confidence_score && trendData.confidence_score > 0.8) {
+    insights.push('✅ High confidence in trend predictions')
+  }
+  
+  return insights.slice(0, 5) // Return top 5 insights
+}
+
+// Refresh all trend data (admin function)
+export async function refreshAllTrendData(): Promise<{ success: boolean; updated: number; error?: string }> {
+  try {
+    // Get all users with metrics
+    const { data: users, error } = await supabase
+      .from('user_metrics')
+      .select('auth_user_id')
+
+    if (error) {
+      return { success: false, updated: 0, error: 'Failed to fetch users' }
+    }
+
+    let updated = 0
+    const { data: freshTrendData } = await getTrendAnalysisWithFallback()
+
+    if (freshTrendData) {
+      // Update trend data for all users
+      for (const user of users) {
+        await updateUserTrendDataInDB(user.auth_user_id, freshTrendData)
+        updated++
+      }
+    }
+
+    return { success: true, updated }
+  } catch (error) {
+    console.error('Refresh all trend data error:', error)
+    return { success: false, updated: 0, error: 'An unexpected error occurred' }
+  }
 }
