@@ -38,7 +38,7 @@ export async function saveUserProfile(authUser: User, formData: UserFormData): P
     }
 
     const { error } = await supabase
-      .from('users')
+      .from('profiles')
       .upsert({
         auth_user_id: authUser.id,
         email: authUser.email || '',
@@ -68,7 +68,7 @@ export async function saveUserProfile(authUser: User, formData: UserFormData): P
 export async function getUserProfile(authUserId: string): Promise<{ data: UserProfile | null; error?: string }> {
   try {
     const { data, error } = await supabase
-      .from('users')
+      .from('profiles')
       .select('*')
       .eq('auth_user_id', authUserId)
       .single()

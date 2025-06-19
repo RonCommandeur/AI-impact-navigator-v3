@@ -356,13 +356,13 @@ function calculateConfidence(profile: UserProfile): number {
   return Math.min(confidence, 0.95) // Cap at 95%
 }
 
-// Save AI prediction to Supabase users table
+// Save AI prediction to Supabase profiles table
 export async function saveAIPrediction(authUserId: string, prediction: AIPrediction): Promise<{ success: boolean; error?: string }> {
   try {
     const { supabase } = await import('./supabase')
     
     const { error } = await supabase
-      .from('users')
+      .from('profiles')
       .update({
         ai_prediction: prediction,
         updated_at: new Date().toISOString()
@@ -384,13 +384,13 @@ export async function saveAIPrediction(authUserId: string, prediction: AIPredict
   }
 }
 
-// Get AI prediction from Supabase users table
+// Get AI prediction from Supabase profiles table
 export async function getAIPrediction(authUserId: string): Promise<{ data: AIPrediction | null; error?: string }> {
   try {
     const { supabase } = await import('./supabase')
     
     const { data, error } = await supabase
-      .from('users')
+      .from('profiles')
       .select('ai_prediction')
       .eq('auth_user_id', authUserId)
       .single()

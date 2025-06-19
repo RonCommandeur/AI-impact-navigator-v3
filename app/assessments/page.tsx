@@ -64,7 +64,7 @@ export default function MyAssessmentsPage() {
       setError(null)
 
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id, job, skills, ai_prediction, created_at, updated_at')
         .eq('auth_user_id', authUserId)
         .order('updated_at', { ascending: false })
