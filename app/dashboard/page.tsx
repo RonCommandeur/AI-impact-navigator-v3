@@ -26,7 +26,12 @@ import {
   Loader2,
   User,
   LogOut,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  Building,
+  DollarSign,
+  Home,
+  Lightbulb
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -47,6 +52,7 @@ import {
 import { Footer } from '@/components/footer'
 import { supabase } from '@/lib/supabase'
 import { getUserMetrics, updateUserMetrics, triggerMetricsUpdate, type UserMetrics } from '@/lib/supabase-metrics'
+import { getUserTrendData, getGlobalTrendData, formatTrendValue, getTrendInsights, type TrendData } from '@/lib/supabase-trends'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -63,20 +69,13 @@ ChartJS.register(
   Filler
 )
 
-interface TrendData {
-  aiJobGrowth: number
-  automationRisk: number
-  skillDemand: { skill: string; growth: number; color: string }[]
-  marketInsights: string[]
-  industryTrends: { month: string; growth: number; risk: number }[]
-}
-
 export default function DashboardPage() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'skills' | 'trends' | 'activity'>('overview')
+  const [trendData, setTrendData] = useState<TrendData | null>(null)
   const [userMetrics, setUserMetrics] = useState<UserMetrics>({
     skillsLearned: [],
     assessmentsCompleted: 0,
@@ -94,33 +93,6 @@ export default function DashboardPage() {
     ]
   })
 
-  const [trendData, setTrendData] = useState<TrendData>({
-    aiJobGrowth: 28,
-    automationRisk: 32,
-    skillDemand: [
-      { skill: 'AI Prompt Engineering', growth: 156, color: '#3b82f6' },
-      { skill: 'Data Science', growth: 134, color: '#10b981' },
-      { skill: 'Creative AI', growth: 128, color: '#8b5cf6' },
-      { skill: 'AI Ethics', growth: 112, color: '#f59e0b' },
-      { skill: 'Human-AI Collaboration', growth: 98, color: '#ef4444' }
-    ],
-    marketInsights: [
-      '28% increase in AI-related job postings this quarter',
-      'Prompt engineering skills show 156% growth in demand',
-      'Remote AI roles growing 45% faster than on-site positions',
-      'Creative + AI hybrid roles emerging as top opportunity',
-      'AI ethics expertise becoming essential for leadership roles'
-    ],
-    industryTrends: [
-      { month: 'Jan', growth: 15, risk: 42 },
-      { month: 'Feb', growth: 18, risk: 40 },
-      { month: 'Mar', growth: 22, risk: 38 },
-      { month: 'Apr', growth: 25, risk: 36 },
-      { month: 'May', growth: 26, risk: 34 },
-      { month: 'Jun', growth: 28, risk: 32 }
-    ]
-  })
-
   // Check authentication status and load metrics
   useEffect(() => {
     const getSession = async () => {
@@ -128,7 +100,7 @@ export default function DashboardPage() {
       setUser(session?.user ?? null)
       
       if (session?.user) {
-        await loadUserMetrics(session.user.id)
+        await loadUserData(session.user.id)
       }
       
       setLoading(false)
@@ -141,7 +113,7 @@ export default function DashboardPage() {
         setUser(session?.user ?? null)
         if (event === 'SIGNED_IN' && session?.user) {
           toast.success('Successfully signed in!')
-          await loadUserMetrics(session.user.id)
+          await loadUserData(session.user.id)
         } else if (event === 'SIGNED_OUT') {
           // Reset metrics to default
           setUserMetrics({
@@ -160,6 +132,7 @@ export default function DashboardPage() {
               { skill: 'Community Building', level: 0 }
             ]
           })
+          setTrendData(null)
         }
       }
     )
@@ -167,22 +140,32 @@ export default function DashboardPage() {
     return () => subscription.unsubscribe()
   }, [])
 
-  const loadUserMetrics = async (authUserId: string) => {
+  const loadUserData = async (authUserId: string) => {
     try {
-      const { data, error } = await getUserMetrics(authUserId)
+      // Load user metrics
+      const { data: metrics, error: metricsError } = await getUserMetrics(authUserId)
       
-      if (error) {
-        console.error('Error loading metrics:', error)
+      if (metricsError) {
+        console.error('Error loading metrics:', metricsError)
         toast.error('Failed to load dashboard metrics')
-        return
+      } else if (metrics) {
+        setUserMetrics(metrics)
       }
 
-      if (data) {
-        setUserMetrics(data)
+      // Load trend data
+      const { data: trends, error: trendsError } = await getUserTrendData(authUserId)
+      
+      if (trendsError) {
+        console.error('Error loading trends:', trendsError)
+        // Don't show error for trends, fall back to global data
+        const { data: globalTrends } = await getGlobalTrendData()
+        setTrendData(globalTrends)
+      } else {
+        setTrendData(trends)
       }
     } catch (error) {
-      console.error('Error loading metrics:', error)
-      toast.error('Failed to load dashboard metrics')
+      console.error('Error loading user data:', error)
+      toast.error('Failed to load dashboard data')
     }
   }
 
@@ -200,8 +183,8 @@ export default function DashboardPage() {
         return
       }
 
-      // Reload metrics
-      await loadUserMetrics(user.id)
+      // Reload data
+      await loadUserData(user.id)
       toast.success('Metrics refreshed successfully!')
       
     } catch (error) {
@@ -253,21 +236,6 @@ export default function DashboardPage() {
     ]
   }
 
-  const skillDemandChartData = {
-    labels: trendData.skillDemand.map(s => s.skill),
-    datasets: [
-      {
-        label: 'Growth Rate (%)',
-        data: trendData.skillDemand.map(s => s.growth),
-        backgroundColor: trendData.skillDemand.map(s => s.color + 'E6'),
-        borderColor: trendData.skillDemand.map(s => s.color),
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      }
-    ]
-  }
-
   const activityChartData = {
     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     datasets: [
@@ -300,6 +268,71 @@ export default function DashboardPage() {
       }
     ]
   }
+
+  // Trend chart data
+  const trendChartData = trendData ? {
+    labels: trendData.monthly_trends.map(t => t.month),
+    datasets: [
+      {
+        label: 'Job Growth (%)',
+        data: trendData.monthly_trends.map(t => t.job_growth),
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        borderColor: 'rgb(34, 197, 94)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: 'rgb(34, 197, 94)',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+      },
+      {
+        label: 'Skill Demand (%)',
+        data: trendData.monthly_trends.map(t => t.skill_demand),
+        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+        borderColor: 'rgb(168, 85, 247)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: 'rgb(168, 85, 247)',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+      }
+    ]
+  } : null
+
+  // Industry adoption chart
+  const industryChartData = trendData ? {
+    labels: trendData.industry_adoption.map(i => i.industry),
+    datasets: [
+      {
+        label: 'Adoption Rate (%)',
+        data: trendData.industry_adoption.map(i => i.adoption_rate),
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.9)',
+          'rgba(16, 185, 129, 0.9)',
+          'rgba(139, 92, 246, 0.9)',
+          'rgba(245, 158, 11, 0.9)',
+          'rgba(239, 68, 68, 0.9)',
+          'rgba(6, 182, 212, 0.9)'
+        ],
+        borderColor: [
+          'rgb(59, 130, 246)',
+          'rgb(16, 185, 129)',
+          'rgb(139, 92, 246)',
+          'rgb(245, 158, 11)',
+          'rgb(239, 68, 68)',
+          'rgb(6, 182, 212)'
+        ],
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+      }
+    ]
+  } : null
 
   const chartOptions = {
     responsive: true,
@@ -378,7 +411,17 @@ export default function DashboardPage() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false,
+        display: true,
+        position: 'top' as const,
+        labels: {
+          color: '#6b7280',
+          font: {
+            size: 12,
+            weight: '500'
+          },
+          usePointStyle: true,
+          pointStyle: 'circle'
+        }
       },
       tooltip: {
         backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -829,72 +872,187 @@ export default function DashboardPage() {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Market Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-0 shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-green-100 text-sm font-medium">AI Job Growth</p>
-                        <p className="text-3xl font-bold">+{trendData.aiJobGrowth}%</p>
-                        <p className="text-green-100 text-sm">This quarter</p>
+              {/* Market Trends Overview */}
+              {trendData && (
+                <>
+                  {/* Key Metrics Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Card className="border-0 shadow-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-green-100 text-sm font-medium">Job Market</p>
+                            <p className="text-2xl font-bold">{formatTrendValue(trendData.job_shifts).text.split(' ')[0]}</p>
+                            <p className="text-green-100 text-sm">Growth this quarter</p>
+                          </div>
+                          <TrendingUp className="w-12 h-12 text-green-200" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-0 shadow-lg bg-gradient-to-r from-purple-500 to-violet-600 text-white">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-purple-100 text-sm font-medium">Skill Demand</p>
+                            <p className="text-2xl font-bold">{formatTrendValue(trendData.skill_demand).text.split(' ')[0]}</p>
+                            <p className="text-purple-100 text-sm">AI skills growth</p>
+                          </div>
+                          <Brain className="w-12 h-12 text-purple-200" />
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-blue-100 text-sm font-medium">Remote Work</p>
+                            <p className="text-2xl font-bold">{formatTrendValue(trendData.remote_work).text.split(' ')[0]}</p>
+                            <p className="text-blue-100 text-sm">AI jobs remote</p>
+                          </div>
+                          <Home className="w-12 h-12 text-blue-200" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Trend Charts */}
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {/* Monthly Trends Chart */}
+                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                          <BarChart3 className="w-5 h-5 text-green-600" />
+                          Market Trends
+                        </CardTitle>
+                        <CardDescription className="text-gray-600 dark:text-gray-400">
+                          Job growth and skill demand over time
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-64">
+                          {trendChartData && <Line data={trendChartData} options={lineOptions} />}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Industry Adoption Chart */}
+                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                          <Building className="w-5 h-5 text-purple-600" />
+                          Industry Adoption
+                        </CardTitle>
+                        <CardDescription className="text-gray-600 dark:text-gray-400">
+                          AI adoption rates by industry
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-64">
+                          {industryChartData && <Bar data={industryChartData} options={chartOptions} />}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Trend Insights */}
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {/* Market Insights */}
+                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                          <Globe className="w-5 h-5 text-blue-600" />
+                          Market Insights
+                        </CardTitle>
+                        <CardDescription className="text-gray-600 dark:text-gray-400">
+                          Key trends and opportunities
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-green-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">Job Growth</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">{trendData.job_shifts}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                            <Brain className="w-5 h-5 text-purple-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">Skill Demand</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">{trendData.skill_demand}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">Salary Trends</p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">{trendData.salary_trends}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Personalized Insights */}
+                    <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                          <Lightbulb className="w-5 h-5 text-yellow-600" />
+                          Insights for You
+                        </CardTitle>
+                        <CardDescription className="text-gray-600 dark:text-gray-400">
+                          Personalized recommendations based on trends
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {getTrendInsights(trendData, userMetrics.skillsLearned).map((insight, index) => (
+                            <div key={index} className="flex items-start gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                              <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0" />
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Last Updated */}
+                  <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          <span>Last updated: {new Date(trendData.last_updated).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4" />
+                          <span>Global market data</span>
+                        </div>
                       </div>
-                      <TrendingUp className="w-12 h-12 text-green-200" />
-                    </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+
+              {!trendData && (
+                <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                  <CardContent className="text-center p-12">
+                    <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                      Loading Trend Data
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      Fetching the latest market insights and trends...
+                    </p>
                   </CardContent>
                 </Card>
-
-                <Card className="border-0 shadow-lg bg-gradient-to-r from-orange-500 to-red-600 text-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-orange-100 text-sm font-medium">Automation Risk</p>
-                        <p className="text-3xl font-bold">{trendData.automationRisk}%</p>
-                        <p className="text-orange-100 text-sm">Industry average</p>
-                      </div>
-                      <Brain className="w-12 h-12 text-orange-200" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Skill Demand Chart */}
-              <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-purple-600" />
-                    In-Demand Skills
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400">
-                    Skills with highest growth in job market demand
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <Bar data={skillDemandChartData} options={chartOptions} />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Market Insights */}
-              <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-gray-900 dark:text-white">Market Insights</CardTitle>
-                  <CardDescription className="text-gray-600 dark:text-gray-400">
-                    Latest trends and opportunities in AI
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {trendData.marketInsights.map((insight, index) => (
-                      <div key={index} className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed">{insight}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              )}
             </motion.div>
           )}
 
