@@ -16,7 +16,7 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
-  // Add webpack configuration to handle potential build issues
+  // Add webpack configuration to handle build issues
   webpack: (config, { isServer }) => {
     // Handle potential issues with server-side rendering
     if (!isServer) {
@@ -29,6 +29,8 @@ const nextConfig = {
         stream: false,
         util: false,
         buffer: false,
+        bufferutil: false,
+        'utf-8-validate': false,
       };
     }
     
@@ -40,6 +42,7 @@ const nextConfig = {
         'crypto': 'crypto',
         'bufferutil': 'bufferutil',
         'utf-8-validate': 'utf-8-validate',
+        'ws': 'ws',
       });
     }
     
@@ -55,16 +58,24 @@ const nextConfig = {
       },
     });
     
-    // Fix for ws module issues
+    // Fix for ws module issues and Supabase realtime
     config.resolve.alias = {
       ...config.resolve.alias,
       'bufferutil': false,
       'utf-8-validate': false,
     };
     
+    // Ignore dynamic requires that cause issues
+    config.module = {
+      ...config.module,
+      unknownContextCritical: false,
+      unknownContextRegExp: /^\.\/.*$/,
+      unknownContextRequest: '.',
+    };
+    
     return config;
   },
-  // Disable static optimization for pages that need runtime data
+  // Disable static optimization for problematic pages
   experimental: {
     esmExternals: 'loose',
   },
@@ -74,11 +85,17 @@ const nextConfig = {
   },
   // Add transpile packages for problematic modules
   transpilePackages: ['chart.js', 'react-chartjs-2'],
-  // Optimize chunks to prevent syntax errors
+  // Disable SWC minification to prevent syntax errors
   swcMinify: false,
   // Add compiler options to handle build issues
   compiler: {
     removeConsole: false,
+  },
+  // Optimize build for static export
+  distDir: '.next',
+  // Disable server components that might cause issues
+  experimental: {
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
 };
 
