@@ -17,4 +17,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   finalKey = supabaseAnonKey
 }
 
-export const supabase = createClient(finalUrl, finalKey)
+// Create the Supabase client with error handling
+export const supabase = createClient(finalUrl, finalKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
+})
+
+// Export a function to check if Supabase is properly configured
+export const isSupabaseConfigured = () => {
+  return !!(finalUrl && finalKey && finalUrl !== 'your_supabase_project_url')
+}
