@@ -38,6 +38,8 @@ const nextConfig = {
       config.externals.push({
         'algosdk': 'algosdk',
         'crypto': 'crypto',
+        'bufferutil': 'bufferutil',
+        'utf-8-validate': 'utf-8-validate',
       });
     }
     
@@ -53,6 +55,13 @@ const nextConfig = {
       },
     });
     
+    // Fix for ws module issues
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'bufferutil': false,
+      'utf-8-validate': false,
+    };
+    
     return config;
   },
   // Disable static optimization for pages that need runtime data
@@ -65,6 +74,12 @@ const nextConfig = {
   },
   // Add transpile packages for problematic modules
   transpilePackages: ['chart.js', 'react-chartjs-2'],
+  // Optimize chunks to prevent syntax errors
+  swcMinify: false,
+  // Add compiler options to handle build issues
+  compiler: {
+    removeConsole: false,
+  },
 };
 
 module.exports = nextConfig;
