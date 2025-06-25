@@ -30,6 +30,14 @@ export interface TrendMetrics {
 // Get trend data for a specific user (with Grok API integration)
 export async function getUserTrendData(authUserId: string): Promise<TrendMetrics> {
   try {
+    // Check if Supabase is properly configured
+    if (!supabase) {
+      return { 
+        data: getFallbackTrendData(),
+        error: 'Database not configured'
+      }
+    }
+
     // First, try to get existing trend data from database
     const { data: existingData, error } = await supabase
       .from('user_metrics')
@@ -82,9 +90,14 @@ export async function getUserTrendData(authUserId: string): Promise<TrendMetrics
   }
 }
 
-// Update trend data in database
+// Update trend data in database with error handling
 async function updateUserTrendDataInDB(authUserId: string, trendData: any): Promise<void> {
   try {
+    if (!supabase) {
+      console.warn('Supabase not configured, skipping trend data update')
+      return
+    }
+
     const { error } = await supabase
       .from('user_metrics')
       .upsert({
@@ -179,13 +192,19 @@ export async function updateUserTrendData(authUserId: string): Promise<{ success
     // Update in database
     await updateUserTrendDataInDB(authUserId, trendData)
 
-    // Also update the user metrics with the new trend data
-    const { error: metricsError } = await supabase.rpc('update_user_metrics_with_trends', {
-      user_id: authUserId
-    })
+    // Also update the user metrics with the new trend data (if Supabase is available)
+    if (supabase) {
+      try {
+        const { error: metricsError } = await supabase.rpc('update_user_metrics_with_trends', {
+          user_id: authUserId
+        })
 
-    if (metricsError) {
-      console.error('Failed to update user metrics:', metricsError)
+        if (metricsError) {
+          console.error('Failed to update user metrics:', metricsError)
+        }
+      } catch (error) {
+        console.error('Error updating user metrics with trends:', error)
+      }
     }
 
     console.log(`Successfully updated trend data from ${source}`)
@@ -260,6 +279,10 @@ export function getTrendInsights(trendData: TrendData, userSkills: string[]): st
 // Refresh all trend data (admin function)
 export async function refreshAllTrendData(): Promise<{ success: boolean; updated: number; error?: string }> {
   try {
+    if (!supabase) {
+      return { success: false, updated: 0, error: 'Database not configured' }
+    }
+
     // Get all users with metrics
     const { data: users, error } = await supabase
       .from('user_metrics')

@@ -21,9 +21,17 @@ export interface MetricsRecord {
   updated_at: string
 }
 
-// Get user metrics from Supabase
+// Get user metrics from Supabase with error handling
 export async function getUserMetrics(authUserId: string): Promise<{ data: UserMetrics | null; error?: string }> {
   try {
+    // Check if Supabase is properly configured
+    if (!supabase) {
+      return { 
+        data: getDefaultMetrics(),
+        error: 'Database not configured'
+      }
+    }
+
     const { data, error } = await supabase
       .from('user_metrics')
       .select('progress')
@@ -32,29 +40,12 @@ export async function getUserMetrics(authUserId: string): Promise<{ data: UserMe
 
     if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
       console.error('Get metrics error:', error)
-      return { data: null, error: 'Failed to load user metrics' }
+      return { data: getDefaultMetrics(), error: 'Failed to load user metrics' }
     }
 
     // If no metrics found, return default metrics
     if (!data) {
-      return { 
-        data: {
-          skillsLearned: [],
-          assessmentsCompleted: 0,
-          communityContributions: 0,
-          nftsEarned: 0,
-          progressScore: 0,
-          totalVotes: 0,
-          weeklyActivity: [0, 0, 0, 0, 0, 0, 0],
-          skillProficiency: [
-            { skill: 'AI Tools', level: 0 },
-            { skill: 'Prompt Engineering', level: 0 },
-            { skill: 'Data Analysis', level: 0 },
-            { skill: 'Creative Strategy', level: 0 },
-            { skill: 'Community Building', level: 0 }
-          ]
-        }
-      }
+      return { data: getDefaultMetrics() }
     }
 
     // Transform the progress data to match our interface
@@ -67,26 +58,48 @@ export async function getUserMetrics(authUserId: string): Promise<{ data: UserMe
       progressScore: progress.progress_score || 0,
       totalVotes: progress.total_votes || 0,
       weeklyActivity: progress.weekly_activity || [0, 0, 0, 0, 0, 0, 0],
-      skillProficiency: progress.skill_proficiency || [
-        { skill: 'AI Tools', level: 0 },
-        { skill: 'Prompt Engineering', level: 0 },
-        { skill: 'Data Analysis', level: 0 },
-        { skill: 'Creative Strategy', level: 0 },
-        { skill: 'Community Building', level: 0 }
-      ],
+      skillProficiency: progress.skill_proficiency || getDefaultSkillProficiency(),
       lastCalculated: progress.last_calculated
     }
 
     return { data: metrics }
   } catch (error) {
     console.error('Get metrics error:', error)
-    return { data: null, error: 'An unexpected error occurred' }
+    return { data: getDefaultMetrics(), error: 'An unexpected error occurred' }
   }
+}
+
+// Get default metrics when database is unavailable
+function getDefaultMetrics(): UserMetrics {
+  return {
+    skillsLearned: [],
+    assessmentsCompleted: 0,
+    communityContributions: 0,
+    nftsEarned: 0,
+    progressScore: 0,
+    totalVotes: 0,
+    weeklyActivity: [0, 0, 0, 0, 0, 0, 0],
+    skillProficiency: getDefaultSkillProficiency()
+  }
+}
+
+function getDefaultSkillProficiency() {
+  return [
+    { skill: 'AI Tools', level: 0 },
+    { skill: 'Prompt Engineering', level: 0 },
+    { skill: 'Data Analysis', level: 0 },
+    { skill: 'Creative Strategy', level: 0 },
+    { skill: 'Community Building', level: 0 }
+  ]
 }
 
 // Update user metrics by recalculating from existing data
 export async function updateUserMetrics(authUserId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!supabase) {
+      return { success: false, error: 'Database not configured' }
+    }
+
     const { error } = await supabase.rpc('update_user_metrics_data', {
       user_id: authUserId
     })
@@ -106,6 +119,10 @@ export async function updateUserMetrics(authUserId: string): Promise<{ success: 
 // Save custom metrics data (for manual updates)
 export async function saveUserMetrics(authUserId: string, metrics: Partial<UserMetrics>): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!supabase) {
+      return { success: false, error: 'Database not configured' }
+    }
+
     // Convert our interface back to database format
     const progressData = {
       skills_learned: metrics.skillsLearned,
@@ -154,6 +171,10 @@ export async function triggerMetricsUpdate(authUserId: string): Promise<void> {
 // Get all users metrics for admin/analytics (if needed)
 export async function getAllUserMetrics(): Promise<{ data: MetricsRecord[]; error?: string }> {
   try {
+    if (!supabase) {
+      return { data: [], error: 'Database not configured' }
+    }
+
     const { data, error } = await supabase
       .from('user_metrics')
       .select('*')

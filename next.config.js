@@ -41,6 +41,18 @@ const nextConfig = {
       });
     }
     
+    // Handle Chart.js and other client-side libraries
+    config.module.rules.push({
+      test: /\.js$/,
+      include: /node_modules\/(chart\.js|react-chartjs-2)/,
+      use: {
+        loader: 'babel-loader',
+        options: {
+          presets: ['@babel/preset-env'],
+        },
+      },
+    });
+    
     return config;
   },
   // Disable static optimization for pages that need runtime data
@@ -51,6 +63,8 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'ai-impact-navigator-build'
   },
+  // Add transpile packages for problematic modules
+  transpilePackages: ['chart.js', 'react-chartjs-2'],
 };
 
 module.exports = nextConfig;

@@ -27,20 +27,6 @@ import {
   WifiOff
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bar, Doughnut, Line } from 'react-chartjs-2'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler,
-} from 'chart.js'
 import { Footer } from '@/components/footer'
 import { Navigation } from '@/components/navigation'
 import { supabase } from '@/lib/supabase'
@@ -48,19 +34,238 @@ import { getUserMetrics, updateUserMetrics, triggerMetricsUpdate, type UserMetri
 import { getUserTrendData, updateUserTrendData, type TrendData } from '@/lib/supabase-trends'
 import { toast } from 'sonner'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import Link from 'next/link'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-)
+// Dynamic imports for Chart.js to prevent SSR issues
+const DynamicCharts = ({ userMetrics, trendData }: { userMetrics: UserMetrics; trendData: TrendData | null }) => {
+  const [chartsLoaded, setChartsLoaded] = useState(false)
+  const [ChartComponents, setChartComponents] = useState<any>(null)
+
+  useEffect(() => {
+    const loadCharts = async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const [
+            { Bar, Doughnut, Line },
+            {
+              Chart as ChartJS,
+              CategoryScale,
+              LinearScale,
+              BarElement,
+              LineElement,
+              PointElement,
+              ArcElement,
+              Title,
+              Tooltip,
+              Legend,
+              Filler,
+            }
+          ] = await Promise.all([
+            import('react-chartjs-2'),
+            import('chart.js')
+          ])
+
+          ChartJS.register(
+            CategoryScale,
+            LinearScale,
+            BarElement,
+            LineElement,
+            PointElement,
+            ArcElement,
+            Title,
+            Tooltip,
+            Legend,
+            Filler
+          )
+
+          setChartComponents({ Bar, Doughnut, Line })
+          setChartsLoaded(true)
+        } catch (error) {
+          console.error('Failed to load charts:', error)
+        }
+      }
+    }
+
+    loadCharts()
+  }, [])
+
+  if (!chartsLoaded || !ChartComponents) {
+    return (
+      <div className="h-48 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  const { Bar, Doughnut, Line } = ChartComponents
+
+  // Chart configurations
+  const skillsChartData = {
+    labels: userMetrics.skillProficiency.map(s => s.skill),
+    datasets: [
+      {
+        label: 'Proficiency Level (%)',
+        data: userMetrics.skillProficiency.map(s => s.level),
+        backgroundColor: [
+          'rgba(59, 130, 246, 0.9)',
+          'rgba(16, 185, 129, 0.9)',
+          'rgba(139, 92, 246, 0.9)',
+          'rgba(245, 158, 11, 0.9)',
+          'rgba(239, 68, 68, 0.9)'
+        ],
+        borderColor: [
+          'rgb(59, 130, 246)',
+          'rgb(16, 185, 129)',
+          'rgb(139, 92, 246)',
+          'rgb(245, 158, 11)',
+          'rgb(239, 68, 68)'
+        ],
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+      }
+    ]
+  }
+
+  const activityChartData = {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      {
+        label: 'Activity Points',
+        data: userMetrics.weeklyActivity,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        borderColor: 'rgb(99, 102, 241)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: 'rgb(99, 102, 241)',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+      }
+    ]
+  }
+
+  const progressChartData = {
+    labels: ['Completed', 'Remaining'],
+    datasets: [
+      {
+        data: [userMetrics.progressScore, 100 - userMetrics.progressScore],
+        backgroundColor: ['#10b981', '#e5e7eb'],
+        borderColor: ['#059669', '#d1d5db'],
+        borderWidth: 3,
+        cutout: '75%',
+      }
+    ]
+  }
+
+  const trendChartData = trendData ? {
+    labels: trendData.monthly_trends.map(t => t.month),
+    datasets: [
+      {
+        label: 'Job Growth (%)',
+        data: trendData.monthly_trends.map(t => t.job_growth),
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+      },
+      {
+        label: 'Skill Demand (%)',
+        data: trendData.monthly_trends.map(t => t.skill_demand),
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+      }
+    ]
+  } : null
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#374151',
+        borderWidth: 1,
+        cornerRadius: 8,
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(156, 163, 175, 0.2)',
+        },
+        ticks: {
+          color: '#6b7280',
+        }
+      },
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#6b7280',
+        }
+      }
+    }
+  }
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#374151',
+        borderWidth: 1,
+        cornerRadius: 8,
+      }
+    },
+    cutout: '75%',
+  }
+
+  return {
+    SkillsChart: () => (
+      <div className="h-64">
+        <Bar data={skillsChartData} options={chartOptions} />
+      </div>
+    ),
+    ActivityChart: () => (
+      <div className="h-48">
+        <Line data={activityChartData} options={chartOptions} />
+      </div>
+    ),
+    ProgressChart: () => (
+      <div className="w-20 h-20 relative">
+        <Doughnut data={progressChartData} options={doughnutOptions} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-2xl font-bold">{userMetrics.progressScore}%</span>
+        </div>
+      </div>
+    ),
+    TrendChart: trendChartData ? () => (
+      <div className="h-64">
+        <Line data={trendChartData} options={chartOptions} />
+      </div>
+    ) : null
+  }
+}
 
 export default function DashboardPage() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
@@ -90,15 +295,19 @@ export default function DashboardPage() {
   // Check authentication status and load metrics
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        await loadUserMetrics(session.user.id)
-        await loadTrendData(session.user.id)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        setUser(session?.user ?? null)
+        
+        if (session?.user) {
+          await loadUserMetrics(session.user.id)
+          await loadTrendData(session.user.id)
+        }
+      } catch (error) {
+        console.error('Error getting session:', error)
+      } finally {
+        setLoading(false)
       }
-      
-      setLoading(false)
     }
 
     getSession()
@@ -221,209 +430,6 @@ export default function DashboardPage() {
       toast.error('Failed to refresh trend data')
     } finally {
       setRefreshingTrends(false)
-    }
-  }
-
-  // Chart configurations with high contrast
-  const skillsChartData = {
-    labels: userMetrics.skillProficiency.map(s => s.skill),
-    datasets: [
-      {
-        label: 'Proficiency Level (%)',
-        data: userMetrics.skillProficiency.map(s => s.level),
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.9)',
-          'rgba(16, 185, 129, 0.9)',
-          'rgba(139, 92, 246, 0.9)',
-          'rgba(245, 158, 11, 0.9)',
-          'rgba(239, 68, 68, 0.9)'
-        ],
-        borderColor: [
-          'rgb(59, 130, 246)',
-          'rgb(16, 185, 129)',
-          'rgb(139, 92, 246)',
-          'rgb(245, 158, 11)',
-          'rgb(239, 68, 68)'
-        ],
-        borderWidth: 2,
-        borderRadius: 8,
-        borderSkipped: false,
-      }
-    ]
-  }
-
-  const activityChartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [
-      {
-        label: 'Activity Points',
-        data: userMetrics.weeklyActivity,
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-        borderColor: 'rgb(99, 102, 241)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: 'rgb(99, 102, 241)',
-        pointBorderColor: '#ffffff',
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      }
-    ]
-  }
-
-  const progressChartData = {
-    labels: ['Completed', 'Remaining'],
-    datasets: [
-      {
-        data: [userMetrics.progressScore, 100 - userMetrics.progressScore],
-        backgroundColor: ['#10b981', '#e5e7eb'],
-        borderColor: ['#059669', '#d1d5db'],
-        borderWidth: 3,
-        cutout: '75%',
-      }
-    ]
-  }
-
-  // Trend charts
-  const trendChartData = trendData ? {
-    labels: trendData.monthly_trends.map(t => t.month),
-    datasets: [
-      {
-        label: 'Job Growth (%)',
-        data: trendData.monthly_trends.map(t => t.job_growth),
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-      },
-      {
-        label: 'Skill Demand (%)',
-        data: trendData.monthly_trends.map(t => t.skill_demand),
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-      }
-    ]
-  } : null
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#374151',
-        borderWidth: 1,
-        cornerRadius: 8,
-        titleFont: {
-          size: 14,
-          weight: 'bold'
-        },
-        bodyFont: {
-          size: 13
-        }
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(156, 163, 175, 0.2)',
-        },
-        ticks: {
-          color: '#6b7280',
-          font: {
-            size: 12,
-            weight: '500'
-          }
-        }
-      },
-      x: {
-        grid: {
-          display: false,
-        },
-        ticks: {
-          color: '#6b7280',
-          font: {
-            size: 12,
-            weight: '500'
-          },
-          maxRotation: 45,
-        }
-      }
-    }
-  }
-
-  const doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#374151',
-        borderWidth: 1,
-        cornerRadius: 8,
-      }
-    },
-    cutout: '75%',
-  }
-
-  const lineOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
-        borderColor: '#374151',
-        borderWidth: 1,
-        cornerRadius: 8,
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(156, 163, 175, 0.2)',
-        },
-        ticks: {
-          color: '#6b7280',
-          font: {
-            size: 11,
-            weight: '500'
-          }
-        }
-      },
-      x: {
-        grid: {
-          display: false,
-        },
-        ticks: {
-          color: '#6b7280',
-          font: {
-            size: 11,
-            weight: '500'
-          }
-        }
-      }
     }
   }
 
@@ -573,12 +579,9 @@ export default function DashboardPage() {
                         Your overall progress in AI adaptation
                       </CardDescription>
                     </div>
-                    <div className="w-20 h-20 relative">
-                      <Doughnut data={progressChartData} options={doughnutOptions} />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-2xl font-bold">{userMetrics.progressScore}%</span>
-                      </div>
-                    </div>
+                    <DynamicCharts userMetrics={userMetrics} trendData={trendData}>
+                      {({ ProgressChart }) => ProgressChart && <ProgressChart />}
+                    </DynamicCharts>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -688,9 +691,9 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-48">
-                    <Line data={activityChartData} options={lineOptions} />
-                  </div>
+                  <DynamicCharts userMetrics={userMetrics} trendData={trendData}>
+                    {({ ActivityChart }) => ActivityChart && <ActivityChart />}
+                  </DynamicCharts>
                 </CardContent>
               </Card>
             </motion.div>
@@ -716,9 +719,9 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
-                    <Bar data={skillsChartData} options={chartOptions} />
-                  </div>
+                  <DynamicCharts userMetrics={userMetrics} trendData={trendData}>
+                    {({ SkillsChart }) => SkillsChart && <SkillsChart />}
+                  </DynamicCharts>
                 </CardContent>
               </Card>
 
@@ -858,7 +861,7 @@ export default function DashboardPage() {
               )}
 
               {/* Trend Chart */}
-              {trendData && trendChartData && (
+              {trendData && (
                 <Card className="border-0 shadow-lg bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
                   <CardHeader>
                     <CardTitle className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -870,9 +873,9 @@ export default function DashboardPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-64">
-                      <Line data={trendChartData} options={lineOptions} />
-                    </div>
+                    <DynamicCharts userMetrics={userMetrics} trendData={trendData}>
+                      {({ TrendChart }) => TrendChart && <TrendChart />}
+                    </DynamicCharts>
                   </CardContent>
                 </Card>
               )}
