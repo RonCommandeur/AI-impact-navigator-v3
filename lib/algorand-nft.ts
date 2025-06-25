@@ -1,12 +1,35 @@
-import algosdk from 'algosdk'
+// Algorand NFT functionality with build-safe imports
+let algosdk: any = null;
+
+// Dynamically import algosdk only when needed (client-side)
+const getAlgosdk = async () => {
+  if (typeof window !== 'undefined' && !algosdk) {
+    try {
+      algosdk = await import('algosdk');
+    } catch (error) {
+      console.warn('Algosdk not available, using mock implementation');
+    }
+  }
+  return algosdk;
+};
 
 // Algorand configuration for testnet
 const ALGORAND_SERVER = 'https://testnet-api.algonode.cloud'
 const ALGORAND_PORT = 443
 const ALGORAND_TOKEN = ''
 
-// Initialize Algorand client
-export const algodClient = new algosdk.Algodv2(ALGORAND_TOKEN, ALGORAND_SERVER, ALGORAND_PORT)
+// Initialize Algorand client (lazy loading)
+let algodClient: any = null;
+
+const getAlgodClient = async () => {
+  if (!algodClient && typeof window !== 'undefined') {
+    const sdk = await getAlgosdk();
+    if (sdk) {
+      algodClient = new sdk.Algodv2(ALGORAND_TOKEN, ALGORAND_SERVER, ALGORAND_PORT);
+    }
+  }
+  return algodClient;
+};
 
 // Mock demo account address for client-side operations
 const DEMO_ACCOUNT_ADDRESS = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
@@ -285,3 +308,6 @@ export function generateDemoAddress(): string {
   }
   return result
 }
+
+// Export algodClient for compatibility (will be null during build)
+export { algodClient }

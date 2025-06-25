@@ -25,29 +25,31 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
+        crypto: false,
+        stream: false,
+        util: false,
+        buffer: false,
       };
     }
     
-    // Optimize bundle splitting
-    config.optimization = {
-      ...config.optimization,
-      splitChunks: {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-        },
-      },
-    };
+    // Ignore problematic modules during build
+    config.externals = config.externals || [];
+    if (isServer) {
+      config.externals.push({
+        'algosdk': 'algosdk',
+        'crypto': 'crypto',
+      });
+    }
     
     return config;
   },
-  // Experimental features for better static export
+  // Disable static optimization for pages that need runtime data
   experimental: {
     esmExternals: 'loose',
+  },
+  // Ensure proper handling of dynamic routes
+  generateBuildId: async () => {
+    return 'ai-impact-navigator-build'
   },
 };
 
