@@ -52,25 +52,23 @@ const ChartComponent = ({ type, data, options, className = "h-48" }: {
     const loadChart = async () => {
       if (typeof window !== 'undefined') {
         try {
-          const [
-            { Bar, Doughnut, Line },
-            {
-              Chart as ChartJS,
-              CategoryScale,
-              LinearScale,
-              BarElement,
-              LineElement,
-              PointElement,
-              ArcElement,
-              Title,
-              Tooltip,
-              Legend,
-              Filler,
-            }
-          ] = await Promise.all([
-            import('react-chartjs-2'),
-            import('chart.js')
-          ])
+          const chartModule = await import('react-chartjs-2')
+          const chartJSModule = await import('chart.js')
+
+          const { Bar, Doughnut, Line } = chartModule
+          const {
+            Chart: ChartJS,
+            CategoryScale,
+            LinearScale,
+            BarElement,
+            LineElement,
+            PointElement,
+            ArcElement,
+            Title,
+            Tooltip,
+            Legend,
+            Filler,
+          } = chartJSModule
 
           ChartJS.register(
             CategoryScale,

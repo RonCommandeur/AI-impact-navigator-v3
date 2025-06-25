@@ -46,16 +46,12 @@ const nextConfig = {
       });
     }
     
-    // Handle Chart.js and other client-side libraries
-    config.module.rules.push({
-      test: /\.js$/,
-      include: /node_modules\/(chart\.js|react-chartjs-2)/,
-      use: {
-        loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-env'],
-        },
-      },
+    // Remove the babel-loader rule that's causing issues
+    config.module.rules = config.module.rules.filter(rule => {
+      if (rule.use && rule.use.loader === 'babel-loader') {
+        return false;
+      }
+      return true;
     });
     
     // Fix for ws module issues and Supabase realtime
@@ -78,6 +74,7 @@ const nextConfig = {
   // Disable static optimization for problematic pages
   experimental: {
     esmExternals: 'loose',
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
   // Ensure proper handling of dynamic routes
   generateBuildId: async () => {
@@ -93,10 +90,6 @@ const nextConfig = {
   },
   // Optimize build for static export
   distDir: '.next',
-  // Disable server components that might cause issues
-  experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
-  },
 };
 
 module.exports = nextConfig;

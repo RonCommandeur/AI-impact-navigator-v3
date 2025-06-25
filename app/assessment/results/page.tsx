@@ -13,27 +13,81 @@ import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { Footer } from '@/components/footer'
 import { type AIPrediction } from '@/lib/ai-predictions'
-import { Doughnut, Bar } from 'react-chartjs-2'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-)
+// Chart component that loads dynamically to avoid build issues
+const ChartComponent = ({ type, data, options, className = "h-48" }: {
+  type: 'bar' | 'doughnut' | 'line'
+  data: any
+  options: any
+  className?: string
+}) => {
+  const [Chart, setChart] = useState<any>(null)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    
+    const loadChart = async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const chartModule = await import('react-chartjs-2')
+          const chartJSModule = await import('chart.js')
+
+          const { Doughnut, Bar } = chartModule
+          const {
+            Chart: ChartJS,
+            CategoryScale,
+            LinearScale,
+            BarElement,
+            ArcElement,
+            Title,
+            Tooltip,
+            Legend,
+          } = chartJSModule
+
+          ChartJS.register(
+            CategoryScale,
+            LinearScale,
+            BarElement,
+            ArcElement,
+            Title,
+            Tooltip,
+            Legend
+          )
+
+          const chartComponents = { bar: Bar, doughnut: Doughnut, line: Bar }
+          setChart(() => chartComponents[type])
+        } catch (error) {
+          console.error('Failed to load chart:', error)
+        }
+      }
+    }
+
+    loadChart()
+  }, [type])
+
+  if (!mounted) {
+    return (
+      <div className={`${className} flex items-center justify-center`}>
+        <div className="text-gray-400">Loading chart...</div>
+      </div>
+    )
+  }
+
+  if (!Chart) {
+    return (
+      <div className={`${className} flex items-center justify-center`}>
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  return (
+    <div className={className}>
+      <Chart data={data} options={options} />
+    </div>
+  )
+}
 
 function AssessmentResultsContent() {
   const searchParams = useSearchParams()
@@ -355,7 +409,7 @@ function AssessmentResultsContent() {
                 <div className="space-y-4">
                   <div className="relative h-48 sm:h-56">
                     {riskChartData && (
-                      <Doughnut data={riskChartData} options={riskChartOptions} />
+                      <ChartComponent type="doughnut" data={riskChartData} options={riskChartOptions} />
                     )}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-center">
@@ -457,7 +511,7 @@ function AssessmentResultsContent() {
                 {/* Actions Priority Chart */}
                 <div className="h-32 sm:h-40">
                   {actionsChartData && (
-                    <Bar data={actionsChartData} options={actionsChartOptions} />
+                    <ChartComponent type="bar" data={actionsChartData} options={actionsChartOptions} />
                   )}
                 </div>
                 
