@@ -1,22 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Brain, ArrowLeft, User, LogOut, Loader2, Plus, X, Sparkles } from 'lucide-react'
+import { Brain, ArrowLeft, Loader2, X, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
 import { Footer } from '@/components/footer'
-import { EmailAuthForm } from '@/components/auth/email-auth-form'
-import { saveUserProfile, getUserProfile, parseSkillsString, skillsArrayToString, type UserFormData } from '@/lib/supabase-users'
-import { generateAIPrediction, saveAIPrediction, type UserProfile, type AIPrediction } from '@/lib/ai-predictions'
-import type { User } from '@supabase/supabase-js'
+import { parseSkillsString, skillsArrayToString } from '@/lib/supabase-users'
+import { generateAIPrediction, type UserProfile, type AIPrediction } from '@/lib/ai-predictions'
 
 interface FormData {
   jobTitle: string
@@ -28,12 +25,8 @@ interface FormData {
 }
 
 export default function AssessmentFormPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [loadingProfile, setLoadingProfile] = useState(false)
   const [generatingPrediction, setGeneratingPrediction] = useState(false)
-  const [showAuthForm, setShowAuthForm] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     jobTitle: '',
     skills: [],
@@ -43,82 +36,10 @@ export default function AssessmentFormPage() {
     concerns: ''
   })
 
-  // Check authentication status on mount
-  useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      
-      // Load existing profile if user is signed in
-      if (session?.user) {
-        await loadUserProfile(session.user.id)
-      }
-      
-      setLoading(false)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        if (event === 'SIGNED_IN' && session?.user) {
-          toast.success('Successfully signed in!')
-          await loadUserProfile(session.user.id)
-          setShowAuthForm(false)
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const loadUserProfile = async (authUserId: string) => {
-    try {
-      setLoadingProfile(true)
-      const { data: profile, error } = await getUserProfile(authUserId)
-      
-      if (error) {
-        console.error('Error loading profile:', error)
-        return
-      }
-
-      if (profile) {
-        setFormData(prev => ({
-          ...prev,
-          jobTitle: profile.job || '',
-          skills: profile.skills || [],
-          skillsInput: profile.skills ? skillsArrayToString(profile.skills) : ''
-        }))
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error)
-    } finally {
-      setLoadingProfile(false)
-    }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        toast.error('Failed to sign out')
-      } else {
-        toast.success('Signed out successfully')
-        // Reset form data
-        setFormData({
-          jobTitle: '',
-          skills: [],
-          skillsInput: '',
-          experience: '',
-          industry: '',
-          concerns: ''
-        })
-      }
-    } catch (error) {
-      toast.error('An error occurred during sign out')
-    }
+  // Mock user for demo mode
+  const mockUser = {
+    id: 'demo-user-id',
+    email: 'test@example.com'
   }
 
   const handleInputChange = (field: keyof FormData, value: string | string[]) => {
@@ -190,11 +111,6 @@ export default function AssessmentFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!user) {
-      setShowAuthForm(true)
-      return
-    }
-
     const validation = validateForm()
     if (!validation.isValid) {
       validation.errors.forEach(error => toast.error(error))
@@ -204,20 +120,7 @@ export default function AssessmentFormPage() {
     try {
       setSubmitting(true)
       
-      // Save user profile to Supabase users table
-      const userFormData: UserFormData = {
-        job: formData.jobTitle.trim(),
-        skills: formData.skills.filter(skill => skill.trim().length > 0)
-      }
-
-      const { success, error } = await saveUserProfile(user, userFormData)
-
-      if (!success) {
-        toast.error(error || 'Failed to save your profile. Please try again.')
-        return
-      }
-
-      toast.success('Profile saved! Generating AI impact prediction...')
+      toast.success('Profile data prepared! Generating AI impact prediction...')
       
       // Generate AI prediction
       setGeneratingPrediction(true)
@@ -232,14 +135,6 @@ export default function AssessmentFormPage() {
 
       const prediction = await generateAIPrediction(userProfile)
       
-      // Save AI prediction to database
-      const { success: predictionSaved, error: predictionError } = await saveAIPrediction(user.id, prediction)
-      
-      if (!predictionSaved) {
-        console.error('Failed to save prediction:', predictionError)
-        // Continue anyway - we have the prediction in memory
-      }
-
       toast.success('🎉 AI prediction generated successfully!')
       
       // Redirect to results page with prediction data
@@ -263,17 +158,6 @@ export default function AssessmentFormPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-          <span className="text-gray-600 dark:text-gray-300">Loading...</span>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col">
       {/* Navigation */}
@@ -288,23 +172,9 @@ export default function AssessmentFormPage() {
               <Brain className="w-6 h-6 text-blue-600" />
               <span className="font-semibold hidden sm:inline">AI Impact Assessment</span>
             </div>
-            {user && (
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                  <User className="w-4 h-4" />
-                  <span className="hidden sm:inline">{user.email}</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSignOut}
-                  className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span className="sr-only">Sign out</span>
-                </Button>
-              </div>
-            )}
+            <div className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+              Demo Mode
+            </div>
           </div>
         </div>
       </nav>
@@ -315,209 +185,167 @@ export default function AssessmentFormPage() {
           animate={{ opacity: 1, y: 0 }}
           className="max-w-2xl mx-auto"
         >
-          {showAuthForm ? (
-            // Authentication Form
-            <EmailAuthForm 
-              onBack={() => setShowAuthForm(false)}
-              redirectTo="/assessment/form"
-            />
-          ) : !user ? (
-            // Sign-in Prompt Card
-            <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
-              <CardHeader className="text-center pb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Brain className="w-8 h-8 text-blue-600" />
+          {/* Assessment Form */}
+          <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
+            <CardHeader className="text-center pb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-8 h-8 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl mb-2 text-gray-900 dark:text-white">
+                Tell Us About Yourself
+              </CardTitle>
+              <CardDescription className="text-base text-gray-600 dark:text-gray-300">
+                Share your professional background to receive personalized AI impact predictions with structured JSON insights and actionable recommendations.
+              </CardDescription>
+              {generatingPrediction && (
+                <div className="flex items-center justify-center space-x-2 text-sm text-blue-600">
+                  <Sparkles className="w-4 h-4 animate-pulse" />
+                  <span>Generating AI predictions...</span>
                 </div>
-                <CardTitle className="text-2xl mb-2 text-gray-900 dark:text-white">
-                  Discover AI's Impact on Your Career
-                </CardTitle>
-                <CardDescription className="text-base text-gray-600 dark:text-gray-300">
-                  Sign in to get personalized JSON-based AI predictions on how AI might affect your work and discover new opportunities.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  onClick={() => setShowAuthForm(true)}
-                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                  Get Started
-                </Button>
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Create an account or sign in to save your assessment results and AI predictions.
+              )}
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Job Title - Required */}
+                <div className="space-y-2">
+                  <Label htmlFor="jobTitle" className="text-sm font-medium text-gray-900 dark:text-white">
+                    Job Title *
+                  </Label>
+                  <Input
+                    id="jobTitle"
+                    type="text"
+                    placeholder="e.g., Graphic Designer, Software Developer, Content Writer"
+                    value={formData.jobTitle}
+                    onChange={(e) => handleInputChange('jobTitle', e.target.value)}
+                    required
+                    className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                    aria-describedby="jobTitle-help"
+                  />
+                  <p id="jobTitle-help" className="text-xs text-gray-500 dark:text-gray-400">
+                    Enter your current job title or the role you're interested in
                   </p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            // Assessment Form
-            <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
-              <CardHeader className="text-center pb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Brain className="w-8 h-8 text-blue-600" />
-                </div>
-                <CardTitle className="text-2xl mb-2 text-gray-900 dark:text-white">
-                  Tell Us About Yourself
-                </CardTitle>
-                <CardDescription className="text-base text-gray-600 dark:text-gray-300">
-                  Share your professional background to receive personalized AI impact predictions with structured JSON insights and actionable recommendations.
-                </CardDescription>
-                {loadingProfile && (
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading your profile...</span>
-                  </div>
-                )}
-                {generatingPrediction && (
-                  <div className="flex items-center justify-center space-x-2 text-sm text-blue-600">
-                    <Sparkles className="w-4 h-4 animate-pulse" />
-                    <span>Generating AI predictions...</span>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Job Title - Required */}
-                  <div className="space-y-2">
-                    <Label htmlFor="jobTitle" className="text-sm font-medium text-gray-900 dark:text-white">
-                      Job Title *
-                    </Label>
-                    <Input
-                      id="jobTitle"
-                      type="text"
-                      placeholder="e.g., Graphic Designer, Software Developer, Content Writer"
-                      value={formData.jobTitle}
-                      onChange={(e) => handleInputChange('jobTitle', e.target.value)}
-                      required
-                      className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                      aria-describedby="jobTitle-help"
-                    />
-                    <p id="jobTitle-help" className="text-xs text-gray-500 dark:text-gray-400">
-                      Enter your current job title or the role you're interested in
-                    </p>
-                  </div>
 
-                  {/* Skills - Required with Tags */}
-                  <div className="space-y-2">
-                    <Label htmlFor="skills" className="text-sm font-medium text-gray-900 dark:text-white">
-                      Key Skills *
-                    </Label>
-                    
-                    {/* Skills Tags Display */}
-                    {formData.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-slate-700 rounded-md border">
-                        {formData.skills.map((skill, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                {/* Skills - Required with Tags */}
+                <div className="space-y-2">
+                  <Label htmlFor="skills" className="text-sm font-medium text-gray-900 dark:text-white">
+                    Key Skills *
+                  </Label>
+                  
+                  {/* Skills Tags Display */}
+                  {formData.skills.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-slate-700 rounded-md border">
+                      {formData.skills.map((skill, index) => (
+                        <Badge
+                          key={index}
+                          variant="secondary"
+                          className="flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        >
+                          {skill}
+                          <button
+                            type="button"
+                            onClick={() => removeSkillTag(skill)}
+                            className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                            aria-label={`Remove ${skill}`}
                           >
-                            {skill}
-                            <button
-                              type="button"
-                              onClick={() => removeSkillTag(skill)}
-                              className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
-                              aria-label={`Remove ${skill}`}
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
-                    <Input
-                      id="skills"
-                      type="text"
-                      placeholder="Type a skill and press Enter or comma to add (e.g., JavaScript, Photoshop)"
-                      value={formData.skillsInput}
-                      onChange={(e) => handleSkillsInputChange(e.target.value)}
-                      onKeyDown={handleSkillsKeyPress}
-                      className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                      aria-describedby="skills-help"
-                    />
-                    <p id="skills-help" className="text-xs text-gray-500 dark:text-gray-400">
-                      Add your skills one by one. Press Enter or comma after each skill to add it as a tag.
-                    </p>
-                  </div>
+                  <Input
+                    id="skills"
+                    type="text"
+                    placeholder="Type a skill and press Enter or comma to add (e.g., JavaScript, Photoshop)"
+                    value={formData.skillsInput}
+                    onChange={(e) => handleSkillsInputChange(e.target.value)}
+                    onKeyDown={handleSkillsKeyPress}
+                    className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                    aria-describedby="skills-help"
+                  />
+                  <p id="skills-help" className="text-xs text-gray-500 dark:text-gray-400">
+                    Add your skills one by one. Press Enter or comma after each skill to add it as a tag.
+                  </p>
+                </div>
 
-                  {/* Experience - Optional */}
-                  <div className="space-y-2">
-                    <Label htmlFor="experience" className="text-sm font-medium text-gray-900 dark:text-white">
-                      Years of Experience
-                    </Label>
-                    <Input
-                      id="experience"
-                      type="text"
-                      placeholder="e.g., 5 years, Entry level, 10+ years"
-                      value={formData.experience}
-                      onChange={(e) => handleInputChange('experience', e.target.value)}
-                      className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
+                {/* Experience - Optional */}
+                <div className="space-y-2">
+                  <Label htmlFor="experience" className="text-sm font-medium text-gray-900 dark:text-white">
+                    Years of Experience
+                  </Label>
+                  <Input
+                    id="experience"
+                    type="text"
+                    placeholder="e.g., 5 years, Entry level, 10+ years"
+                    value={formData.experience}
+                    onChange={(e) => handleInputChange('experience', e.target.value)}
+                    className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
 
-                  {/* Industry - Optional */}
-                  <div className="space-y-2">
-                    <Label htmlFor="industry" className="text-sm font-medium text-gray-900 dark:text-white">
-                      Industry
-                    </Label>
-                    <Input
-                      id="industry"
-                      type="text"
-                      placeholder="e.g., Technology, Marketing, Healthcare, Education"
-                      value={formData.industry}
-                      onChange={(e) => handleInputChange('industry', e.target.value)}
-                      className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
+                {/* Industry - Optional */}
+                <div className="space-y-2">
+                  <Label htmlFor="industry" className="text-sm font-medium text-gray-900 dark:text-white">
+                    Industry
+                  </Label>
+                  <Input
+                    id="industry"
+                    type="text"
+                    placeholder="e.g., Technology, Marketing, Healthcare, Education"
+                    value={formData.industry}
+                    onChange={(e) => handleInputChange('industry', e.target.value)}
+                    className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
 
-                  {/* Concerns - Optional */}
-                  <div className="space-y-2">
-                    <Label htmlFor="concerns" className="text-sm font-medium text-gray-900 dark:text-white">
-                      Concerns or Goals (Optional)
-                    </Label>
-                    <Textarea
-                      id="concerns"
-                      placeholder="e.g., Worried about job automation, want to learn AI tools, looking for new opportunities"
-                      value={formData.concerns}
-                      onChange={(e) => handleInputChange('concerns', e.target.value)}
-                      className="min-h-[100px] text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 resize-y"
-                      aria-describedby="concerns-help"
-                    />
-                    <p id="concerns-help" className="text-xs text-gray-500 dark:text-gray-400">
-                      Share any specific concerns about AI or goals you'd like to achieve
-                    </p>
-                  </div>
+                {/* Concerns - Optional */}
+                <div className="space-y-2">
+                  <Label htmlFor="concerns" className="text-sm font-medium text-gray-900 dark:text-white">
+                    Concerns or Goals (Optional)
+                  </Label>
+                  <Textarea
+                    id="concerns"
+                    placeholder="e.g., Worried about job automation, want to learn AI tools, looking for new opportunities"
+                    value={formData.concerns}
+                    onChange={(e) => handleInputChange('concerns', e.target.value)}
+                    className="min-h-[100px] text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500 resize-y"
+                    aria-describedby="concerns-help"
+                  />
+                  <p id="concerns-help" className="text-xs text-gray-500 dark:text-gray-400">
+                    Share any specific concerns about AI or goals you'd like to achieve
+                  </p>
+                </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    disabled={submitting || !formData.jobTitle.trim() || formData.skills.length === 0}
-                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        {generatingPrediction ? 'Generating AI Predictions...' : 'Saving Profile...'}
-                      </>
-                    ) : (
-                      <>
-                        Get My AI Impact Prediction
-                        <Sparkles className="w-5 h-5 ml-2" />
-                      </>
-                    )}
-                  </Button>
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  disabled={submitting || !formData.jobTitle.trim() || formData.skills.length === 0}
+                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      {generatingPrediction ? 'Generating AI Predictions...' : 'Processing...'}
+                    </>
+                  ) : (
+                    <>
+                      Get My AI Impact Prediction
+                      <Sparkles className="w-5 h-5 ml-2" />
+                    </>
+                  )}
+                </Button>
 
-                  {/* Required Fields Note */}
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      * Required fields. Your data and AI predictions are securely stored and never shared.
-                    </p>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+                {/* Demo Mode Note */}
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    * Required fields. Running in demo mode - no account needed.
+                  </p>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
 

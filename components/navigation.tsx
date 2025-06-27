@@ -20,19 +20,20 @@ import {
   Sparkles
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase'
-import { toast } from 'sonner'
-import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 interface NavigationProps {
   className?: string
 }
 
 export function Navigation({ className = '' }: NavigationProps) {
-  const [user, setUser] = useState<SupabaseUser | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
   const pathname = usePathname()
+
+  // Mock user for testing - remove authentication checks
+  const mockUser = {
+    id: 'mock-user-id',
+    email: 'test@example.com'
+  }
 
   // Navigation items
   const navigationItems = [
@@ -75,43 +76,6 @@ export function Navigation({ className = '' }: NavigationProps) {
       description: 'Progress & Insights'
     }
   ]
-
-  // Check authentication status
-  useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
-      setLoading(false)
-    }
-
-    getSession()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        if (event === 'SIGNED_OUT') {
-          setMobileMenuOpen(false)
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  // Handle sign out
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        toast.error('Failed to sign out')
-      } else {
-        toast.success('Signed out successfully')
-        setMobileMenuOpen(false)
-      }
-    } catch (error) {
-      toast.error('An error occurred during sign out')
-    }
-  }
 
   // Check if a path is active
   const isActivePath = (href: string) => {
@@ -216,47 +180,27 @@ export function Navigation({ className = '' }: NavigationProps) {
               })}
             </div>
 
-            {/* User Menu & Mobile Toggle */}
+            {/* User Info & Mobile Toggle - Show mock user for testing */}
             <div className="flex items-center space-x-3">
-              {/* User Info (Desktop) */}
-              {!loading && user && (
-                <div className="hidden md:flex items-center space-x-3">
-                  <div className="flex items-center space-x-2 text-sm">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="hidden lg:block">
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {user.email?.split('@')[0]}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Signed in
-                      </p>
-                    </div>
+              {/* Mock User Info (Desktop) */}
+              <div className="hidden md:flex items-center space-x-3">
+                <div className="flex items-center space-x-2 text-sm">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <User className="w-4 h-4 text-white" />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSignOut}
-                    className="text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                    aria-label="Sign out"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="hidden xl:inline ml-2">Sign Out</span>
-                  </Button>
+                  <div className="hidden lg:block">
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Test User
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Demo Mode
+                    </p>
+                  </div>
                 </div>
-              )}
-
-              {/* Sign In Button (Desktop) */}
-              {!loading && !user && (
-                <div className="hidden md:block">
-                  <Link href="/auth">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                      Sign In
-                    </Button>
-                  </Link>
+                <div className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                  Demo
                 </div>
-              )}
+              </div>
 
               {/* Mobile Menu Toggle */}
               <Button
@@ -291,33 +235,25 @@ export function Navigation({ className = '' }: NavigationProps) {
               data-mobile-menu
             >
               <div className="container mx-auto px-4 py-4">
-                {/* User Info (Mobile) */}
-                {!loading && user && (
-                  <div className="flex items-center justify-between p-3 mb-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {user.email?.split('@')[0]}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {user.email}
-                        </p>
-                      </div>
+                {/* Mock User Info (Mobile) */}
+                <div className="flex items-center justify-between p-3 mb-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-white" />
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleSignOut}
-                      className="text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400"
-                      aria-label="Sign out"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </Button>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        Test User
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Demo Mode - No Authentication
+                      </p>
+                    </div>
                   </div>
-                )}
+                  <div className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                    Demo
+                  </div>
+                </div>
 
                 {/* Navigation Items (Mobile) */}
                 <div className="space-y-2">
@@ -359,30 +295,20 @@ export function Navigation({ className = '' }: NavigationProps) {
                   })}
                 </div>
 
-                {/* Sign In Prompt (Mobile) */}
-                {!loading && !user && (
-                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-center space-x-3">
-                      <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <div>
-                        <p className="font-medium text-blue-900 dark:text-blue-100">
-                          Sign in to unlock all features
-                        </p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          Save assessments, join community, earn NFTs
-                        </p>
-                      </div>
+                {/* Demo Mode Info (Mobile) */}
+                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center space-x-3">
+                    <Sparkles className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <div>
+                      <p className="font-medium text-blue-900 dark:text-blue-100">
+                        Demo Mode Active
+                      </p>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        All features unlocked for testing
+                      </p>
                     </div>
-                    <Link href="/auth">
-                      <Button 
-                        className="w-full mt-3 bg-blue-600 hover:bg-blue-700"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        Get Started
-                      </Button>
-                    </Link>
                   </div>
-                )}
+                </div>
               </div>
             </motion.div>
           )}
