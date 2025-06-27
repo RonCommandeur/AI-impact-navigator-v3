@@ -17,6 +17,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   finalKey = supabaseAnonKey
 }
 
+// Validate that we have proper Supabase credentials
+if (!finalUrl || !finalKey || finalUrl === 'your_supabase_project_url') {
+  console.error('Invalid Supabase configuration. Please check your environment variables.')
+}
+
 // Create the Supabase client with error handling
 export const supabase = createClient(finalUrl, finalKey, {
   auth: {
