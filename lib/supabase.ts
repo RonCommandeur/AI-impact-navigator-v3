@@ -1,64 +1,67 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-let finalUrl: string
-let finalKey: string
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase environment variables are missing. Using fallback configuration.')
-  
-  // Fallback to the configured values
-  finalUrl = 'https://swtyheoaewjnfatjofdj.supabase.co'
-  finalKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3dHloZW9hZXdqbmZhdGpvZmRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NzEwMTAsImV4cCI6MjA2NTI0NzAxMH0.oIp3Emocv3oUgvRb0uf4P7xJx7NWoPeNFp4ZeKyuBlg'
-} else {
-  finalUrl = supabaseUrl
-  finalKey = supabaseAnonKey
+  throw new Error('Missing Supabase environment variables')
 }
 
-// Validate that we have proper Supabase credentials
-if (!finalUrl || !finalKey || finalUrl === 'your_supabase_project_url') {
-  console.error('Invalid Supabase configuration. Please check your environment variables.')
-}
-
-// Create the Supabase client with error handling
-export const supabase = createClient(finalUrl, finalKey, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
-    },
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'ai-impact-navigator'
-    }
+    persistSession: true,
+    detectSessionInUrl: true
   }
 })
 
-// Export a function to check if Supabase is properly configured
-export const isSupabaseConfigured = () => {
-  return !!(finalUrl && finalKey && finalUrl !== 'your_supabase_project_url')
-}
-
-// Test connection function
-export const testSupabaseConnection = async () => {
+// Test Supabase connection
+export async function testSupabaseConnection() {
   try {
-    const { data, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true })
-    if (error) {
-      console.error('Supabase connection test failed:', error)
+    // Simple health check using a basic query
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1)
+      .maybeSingle()
+
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 is "relation does not exist" which is fine for testing connection
+      console.error('Supabase connection error:', error)
       return false
     }
+
     console.log('Supabase connection successful')
     return true
   } catch (error) {
-    console.error('Supabase connection error:', error)
+    console.error('Supabase connection test failed:', error)
     return false
   }
+}
+
+// Auth helpers
+export async function signUp(email: string, password: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  })
+  return { data, error }
+}
+
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+  return { data, error }
+}
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut()
+  return { error }
+}
+
+export async function getCurrentUser() {
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
 }
