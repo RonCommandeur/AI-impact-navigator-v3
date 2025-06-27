@@ -9,7 +9,7 @@ let finalKey: string
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase environment variables are missing. Using fallback configuration.')
   
-  // Fallback to the configured values from netlify.toml
+  // Fallback to the configured values
   finalUrl = 'https://swtyheoaewjnfatjofdj.supabase.co'
   finalKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3dHloZW9hZXdqbmZhdGpvZmRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk2NzEwMTAsImV4cCI6MjA2NTI0NzAxMH0.oIp3Emocv3oUgvRb0uf4P7xJx7NWoPeNFp4ZeKyuBlg'
 } else {
@@ -27,15 +27,38 @@ export const supabase = createClient(finalUrl, finalKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   },
   realtime: {
     params: {
       eventsPerSecond: 10,
     },
   },
+  global: {
+    headers: {
+      'X-Client-Info': 'ai-impact-navigator'
+    }
+  }
 })
 
 // Export a function to check if Supabase is properly configured
 export const isSupabaseConfigured = () => {
   return !!(finalUrl && finalKey && finalUrl !== 'your_supabase_project_url')
+}
+
+// Test connection function
+export const testSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true })
+    if (error) {
+      console.error('Supabase connection test failed:', error)
+      return false
+    }
+    console.log('Supabase connection successful')
+    return true
+  } catch (error) {
+    console.error('Supabase connection error:', error)
+    return false
+  }
 }

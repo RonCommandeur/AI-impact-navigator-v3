@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Brain, Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase'
+import { supabase, testSupabaseConnection } from '@/lib/supabase'
 
 interface EmailAuthFormProps {
   onBack?: () => void
@@ -67,28 +67,41 @@ export function EmailAuthForm({ onBack, redirectTo }: EmailAuthFormProps) {
     try {
       setLoading(true)
 
+      // Test connection first
+      const connectionOk = await testSupabaseConnection()
+      if (!connectionOk) {
+        toast.error('Unable to connect to database. Please check your connection.')
+        return
+      }
+
       if (isSignUp) {
         // Sign up new user
         const { data, error } = await supabase.auth.signUp({
           email: formData.email.trim(),
           password: formData.password,
           options: {
-            emailRedirectTo: redirectTo || `${window.location.origin}/assessment/form`
+            emailRedirectTo: redirectTo || `${window.location.origin}/assessment/form`,
+            data: {
+              email_confirm: false // Disable email confirmation for demo
+            }
           }
         })
 
         if (error) {
+          console.error('Sign up error:', error)
           if (error.message.includes('already registered')) {
             toast.error('This email is already registered. Try signing in instead.')
             setIsSignUp(false)
+          } else if (error.message.includes('Invalid login credentials')) {
+            toast.error('Invalid email or password format')
           } else {
-            toast.error(error.message)
+            toast.error(error.message || 'Failed to create account')
           }
           return
         }
 
         if (data.user && !data.session) {
-          toast.success('Check your email for a confirmation link!')
+          toast.success('Account created! Please check your email for confirmation.')
         } else if (data.session) {
           toast.success('Account created successfully!')
         }
@@ -100,10 +113,11 @@ export function EmailAuthForm({ onBack, redirectTo }: EmailAuthFormProps) {
         })
 
         if (error) {
+          console.error('Sign in error:', error)
           if (error.message.includes('Invalid login credentials')) {
             toast.error('Invalid email or password')
           } else {
-            toast.error(error.message)
+            toast.error(error.message || 'Failed to sign in')
           }
           return
         }
@@ -114,7 +128,7 @@ export function EmailAuthForm({ onBack, redirectTo }: EmailAuthFormProps) {
       }
     } catch (error) {
       console.error('Auth error:', error)
-      toast.error('An unexpected error occurred')
+      toast.error('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -123,6 +137,14 @@ export function EmailAuthForm({ onBack, redirectTo }: EmailAuthFormProps) {
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true)
+      
+      // Test connection first
+      const connectionOk = await testSupabaseConnection()
+      if (!connectionOk) {
+        toast.error('Unable to connect to database. Please check your connection.')
+        return
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -131,12 +153,12 @@ export function EmailAuthForm({ onBack, redirectTo }: EmailAuthFormProps) {
       })
       
       if (error) {
+        console.error('Google auth error:', error)
         toast.error('Failed to sign in with Google')
-        console.error('Auth error:', error)
       }
     } catch (error) {
-      toast.error('An error occurred during sign in')
-      console.error('Sign in error:', error)
+      console.error('Google sign in error:', error)
+      toast.error('An error occurred during Google sign in')
     } finally {
       setLoading(false)
     }

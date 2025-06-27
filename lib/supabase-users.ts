@@ -37,6 +37,7 @@ export async function saveUserProfile(authUser: User, formData: UserFormData): P
       return { success: false, error: 'At least one valid skill is required' }
     }
 
+    // Use the correct table name 'profiles' instead of 'users'
     const { error } = await supabase
       .from('profiles')
       .upsert({
