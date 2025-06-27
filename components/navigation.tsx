@@ -247,6 +247,17 @@ export function Navigation({ className = '' }: NavigationProps) {
                 </div>
               )}
 
+              {/* Sign In Button (Desktop) */}
+              {!loading && !user && (
+                <div className="hidden md:block">
+                  <Link href="/auth">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      Sign In
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
               {/* Mobile Menu Toggle */}
               <Button
                 variant="ghost"
@@ -362,7 +373,7 @@ export function Navigation({ className = '' }: NavigationProps) {
                         </p>
                       </div>
                     </div>
-                    <Link href="/assessment/form">
+                    <Link href="/auth">
                       <Button 
                         className="w-full mt-3 bg-blue-600 hover:bg-blue-700"
                         onClick={() => setMobileMenuOpen(false)}
