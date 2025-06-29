@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Brain, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Loader2, Share2, Code, Target, Clock, Download } from 'lucide-react'
+import { Brain, ArrowLeft, Sparkles, TrendingUp, AlertTriangle, CheckCircle, Loader2, Share2, Code, Target, Clock, Download, Shield, Zap, Users, Lightbulb } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -467,7 +467,7 @@ function AssessmentResultsContent() {
                 <div className="space-y-4">
                   <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                     <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">
-                      Impact Summary
+                      Quick Impact Summary
                     </h4>
                     <p className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                       {prediction.impact}
@@ -495,6 +495,128 @@ function AssessmentResultsContent() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Enhanced Detailed Impact Analysis */}
+          {prediction.detailed_impact && (
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Immediate Threats */}
+              <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-red-500" />
+                    Immediate Threats
+                  </CardTitle>
+                  <CardDescription>
+                    Current AI capabilities that may impact your role
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {prediction.detailed_impact.immediate_threats.map((threat, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">{threat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Long-term Opportunities */}
+              <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5 text-green-500" />
+                    Long-term Opportunities
+                  </CardTitle>
+                  <CardDescription>
+                    Areas where human expertise will remain valuable
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {prediction.detailed_impact.long_term_opportunities.map((opportunity, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">{opportunity}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Skill Gaps */}
+              <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-yellow-500" />
+                    Critical Skill Gaps
+                  </CardTitle>
+                  <CardDescription>
+                    Areas requiring immediate attention and development
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {prediction.detailed_impact.skill_gaps.map((gap, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full mt-2 flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">{gap}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Market Shifts */}
+              <Card className="border-0 shadow-xl bg-white dark:bg-slate-800 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-blue-500" />
+                    Market Shifts
+                  </CardTitle>
+                  <CardDescription>
+                    How your industry landscape is evolving
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-3">
+                    {prediction.detailed_impact.market_shifts.map((shift, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">{shift}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Strategic Advantages */}
+          {prediction.detailed_impact?.strategic_advantages && (
+            <Card className="border-0 shadow-xl bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  Your Strategic Advantages
+                </CardTitle>
+                <CardDescription>
+                  Unique human capabilities that AI cannot replicate
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {prediction.detailed_impact.strategic_advantages.map((advantage, index) => (
+                    <div key={index} className="flex items-start gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg">
+                      <div className="w-2 h-2 bg-purple-600 rounded-full mt-2 flex-shrink-0" />
+                      <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base font-medium">{advantage}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* JSON Display */}
           {showJSON && (
