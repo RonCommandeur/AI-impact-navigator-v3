@@ -50,12 +50,12 @@ interface UserNFT {
   }
 }
 
-// Mock data for demo mode
+// Expanded mock data with 8 total contributions
 const mockContributions: UserContribution[] = [
   {
     id: '1',
     title: 'How I Built My First AI App with Bolt.new',
-    content: 'Starting with zero AI experience, I used Bolt.new to create an amazing application. Here\'s my complete journey, the challenges I faced, and what I learned along the way...',
+    content: 'Starting with zero AI experience, I used Bolt.new to create an amazing application. Here\'s my complete journey, the challenges I faced, and what I learned along the way. From initial concept to deployment, this tutorial covers everything you need to know about building AI-powered applications...',
     category: 'Tutorial',
     votes: 24,
     nft_id: '123456789',
@@ -65,7 +65,7 @@ const mockContributions: UserContribution[] = [
   {
     id: '2',
     title: 'Why AI Won\'t Replace Developers (But Will Make Us Better)',
-    content: 'There\'s so much fear about AI replacing jobs, but my experience has been the opposite. AI tools have made me more productive and allowed me to focus on creative problem-solving...',
+    content: 'There\'s so much fear about AI replacing jobs, but my experience has been the opposite. AI tools have made me more productive and allowed me to focus on creative problem-solving. Here\'s my perspective on how AI enhances rather than threatens developer careers...',
     category: 'Discussion',
     votes: 8,
     created_at: '2025-01-12T15:30:00Z',
@@ -74,15 +74,65 @@ const mockContributions: UserContribution[] = [
   {
     id: '3',
     title: 'Building a Side Business with AI Tools',
-    content: 'I started a content creation business using various AI tools and it\'s now generating steady income. Here\'s exactly how I did it and what tools I recommend...',
+    content: 'I started a content creation business using various AI tools and it\'s now generating steady income. Here\'s exactly how I did it and what tools I recommend. From client acquisition to project delivery, this guide covers the complete process of monetizing AI skills...',
     category: 'Business',
     votes: 15,
     nft_id: '987654321',
     created_at: '2025-01-08T09:15:00Z',
     updated_at: '2025-01-08T09:15:00Z'
+  },
+  {
+    id: '4',
+    title: 'My 30-Day AI Learning Challenge Results',
+    content: 'I committed to learning something new about AI every day for 30 days. Here are the most valuable lessons, breakthrough moments, and practical skills I gained. Plus, I\'m sharing my complete learning plan and resources that made the biggest difference in my understanding...',
+    category: 'Experience',
+    votes: 32,
+    nft_id: '456789123',
+    created_at: '2025-01-05T14:20:00Z',
+    updated_at: '2025-01-05T14:20:00Z'
+  },
+  {
+    id: '5',
+    title: 'The Complete Guide to AI Prompt Engineering',
+    content: 'After 6 months of experimenting with different AI models, I\'ve compiled the ultimate guide to prompt engineering. This comprehensive tutorial covers techniques for ChatGPT, Claude, Midjourney, and more. Learn how to get consistently better results from AI tools with proven strategies...',
+    category: 'Tutorial',
+    votes: 67,
+    nft_id: '789123456',
+    created_at: '2024-12-28T11:45:00Z',
+    updated_at: '2024-12-28T11:45:00Z'
+  },
+  {
+    id: '6',
+    title: 'From Skeptic to AI Advocate: My Transformation Story',
+    content: 'Six months ago, I was convinced AI was just hype. Today, it\'s revolutionized how I work and think about problems. Here\'s the honest story of how I went from AI skeptic to someone who can\'t imagine working without these tools. What changed my mind and practical steps for other skeptics...',
+    category: 'Experience',
+    votes: 19,
+    nft_id: '321654987',
+    created_at: '2024-12-22T16:10:00Z',
+    updated_at: '2024-12-22T16:10:00Z'
+  },
+  {
+    id: '7',
+    title: 'AI Ethics in the Workplace: Real-World Dilemmas',
+    content: 'As AI becomes more prevalent in our work, we\'re facing ethical questions that didn\'t exist before. I\'ve encountered several challenging situations and want to start a discussion about how we navigate these responsibly. What are your thoughts on bias, transparency, and human oversight?',
+    category: 'Discussion',
+    votes: 6,
+    created_at: '2024-12-18T09:30:00Z',
+    updated_at: '2024-12-18T09:30:00Z'
+  },
+  {
+    id: '8',
+    title: 'How I Landed My Dream Job Using AI Skills',
+    content: 'After completing my AI learning journey, I was able to transition into a role I never thought possible. Here\'s how I positioned my new AI skills during interviews, the projects that impressed employers, and the specific competencies that made the difference. Plus tips for showcasing AI expertise on your resume...',
+    category: 'Business',
+    votes: 41,
+    nft_id: '654321789',
+    created_at: '2024-12-15T13:55:00Z',
+    updated_at: '2024-12-15T13:55:00Z'
   }
 ]
 
+// Expanded NFT collection with 6 total NFTs
 const mockNFTs: UserNFT[] = [
   {
     assetId: 123456789,
@@ -108,6 +158,58 @@ const mockNFTs: UserNFT[] = [
       votes: 15,
       category: 'Business',
       dateEarned: '2025-01-08T14:00:00Z'
+    }
+  },
+  {
+    assetId: 456789123,
+    name: 'Community Contributor NFT',
+    description: 'Earned for valuable community contribution',
+    imageUrl: 'https://via.placeholder.com/200x200/f59e0b/ffffff?text=NFT',
+    metadata: {
+      title: 'Community Contributor NFT: My 30-Day AI Learning Challenge Results',
+      contributionId: '4',
+      votes: 32,
+      category: 'Experience',
+      dateEarned: '2025-01-05T18:30:00Z'
+    }
+  },
+  {
+    assetId: 789123456,
+    name: 'Community Contributor NFT',
+    description: 'Earned for valuable community contribution',
+    imageUrl: 'https://via.placeholder.com/200x200/8b5cf6/ffffff?text=NFT',
+    metadata: {
+      title: 'Community Contributor NFT: The Complete Guide to AI Prompt Engineering',
+      contributionId: '5',
+      votes: 67,
+      category: 'Tutorial',
+      dateEarned: '2024-12-28T15:20:00Z'
+    }
+  },
+  {
+    assetId: 321654987,
+    name: 'Community Contributor NFT',
+    description: 'Earned for valuable community contribution',
+    imageUrl: 'https://via.placeholder.com/200x200/06b6d4/ffffff?text=NFT',
+    metadata: {
+      title: 'Community Contributor NFT: From Skeptic to AI Advocate: My Transformation Story',
+      contributionId: '6',
+      votes: 19,
+      category: 'Experience',
+      dateEarned: '2024-12-22T20:45:00Z'
+    }
+  },
+  {
+    assetId: 654321789,
+    name: 'Community Contributor NFT',
+    description: 'Earned for valuable community contribution',
+    imageUrl: 'https://via.placeholder.com/200x200/ec4899/ffffff?text=NFT',
+    metadata: {
+      title: 'Community Contributor NFT: How I Landed My Dream Job Using AI Skills',
+      contributionId: '8',
+      votes: 41,
+      category: 'Business',
+      dateEarned: '2024-12-15T17:10:00Z'
     }
   }
 ]
@@ -186,7 +288,7 @@ export default function MyContributionsPage() {
                 Demo Mode Active
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                Viewing sample contribution history. Post in the community to see your real data here.
+                Viewing 8 sample contributions across diverse topics. Post in the community to see your real data here.
               </p>
             </CardContent>
           </Card>
