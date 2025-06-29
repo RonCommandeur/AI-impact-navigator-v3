@@ -228,7 +228,7 @@ function AssessmentResultsContent() {
     },
   }
 
-  // Bar chart for actions priority
+  // Bar chart for actions priority with improved spacing
   const actionsChartData = prediction ? {
     labels: prediction.actions.slice(0, 5).map((_, index) => `Action ${index + 1}`),
     datasets: [
@@ -238,7 +238,8 @@ function AssessmentResultsContent() {
         backgroundColor: 'rgba(59, 130, 246, 0.8)',
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 2,
-        borderRadius: 8,
+        borderRadius: 6,
+        borderSkipped: false,
       },
     ],
   } : null
@@ -246,27 +247,65 @@ function AssessmentResultsContent() {
   const actionsChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 20,
+        right: 20,
+        bottom: 20,
+        left: 20
+      }
+    },
     plugins: {
       legend: {
         display: false,
       },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        borderColor: '#374151',
+        borderWidth: 1,
+        cornerRadius: 8,
+      }
     },
     scales: {
       y: {
         beginAtZero: true,
         max: 100,
+        grid: {
+          color: 'rgba(156, 163, 175, 0.2)',
+        },
         ticks: {
+          color: '#6b7280',
+          font: {
+            size: 11
+          },
           callback: function(value: any) {
             return value + '%'
-          }
+          },
+          maxTicksLimit: 6,
+          padding: 8
         }
       },
       x: {
+        grid: {
+          display: false,
+        },
         ticks: {
+          color: '#6b7280',
+          font: {
+            size: 10
+          },
           maxRotation: 0,
+          padding: 8
         }
       }
     },
+    elements: {
+      bar: {
+        borderRadius: 4,
+      }
+    }
   }
 
   if (loading) {
@@ -507,9 +546,9 @@ function AssessmentResultsContent() {
                   Priority-ranked steps to thrive in the AI era
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Actions Priority Chart */}
-                <div className="h-32 sm:h-40">
+              <CardContent className="space-y-6">
+                {/* Actions Priority Chart - Increased height and better spacing */}
+                <div className="h-48 sm:h-52">
                   {actionsChartData && (
                     <ChartComponent type="bar" data={actionsChartData} options={actionsChartOptions} />
                   )}
