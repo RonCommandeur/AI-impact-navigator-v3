@@ -196,6 +196,11 @@ export default function CommunityPage() {
             toast.success(hasVoted ? 'Vote added!' : 'Vote removed!')
           }
 
+          // CRITICAL FIX: Update selectedPost if it's the same post
+          if (selectedPost && selectedPost.id === contributionId) {
+            setSelectedPost(updatedPost)
+          }
+
           return updatedPost
         }
         return post
@@ -225,16 +230,16 @@ export default function CommunityPage() {
             user_has_saved: hasSaved
           }
 
+          // CRITICAL FIX: Update selectedPost if it's the same post
+          if (selectedPost && selectedPost.id === contributionId) {
+            setSelectedPost(updatedPost)
+          }
+
           toast.success(hasSaved ? '📚 Post saved to your collection!' : 'Post removed from saved items')
           return updatedPost
         }
         return post
       }))
-
-      // Update selected post if it's open
-      if (selectedPost?.id === contributionId) {
-        setSelectedPost(prev => prev ? { ...prev, user_has_saved: !prev.user_has_saved } : null)
-      }
 
     } catch (error) {
       console.error('Save error:', error)
@@ -392,10 +397,19 @@ export default function CommunityPage() {
         return comment
       }) || []
 
-      setSelectedPost({
+      const updatedPost = {
         ...selectedPost,
         comments: updatedComments
-      })
+      }
+
+      setSelectedPost(updatedPost)
+
+      // Update posts list as well
+      setPosts(prev => prev.map(post => 
+        post.id === selectedPost.id 
+          ? updatedPost
+          : post
+      ))
 
     } catch (error) {
       console.error('Comment like error:', error)
