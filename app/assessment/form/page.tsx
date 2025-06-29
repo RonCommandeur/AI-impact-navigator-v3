@@ -49,8 +49,7 @@ export default function AssessmentFormPage() {
   const handleSkillsInputChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
-      skillsInput: value,
-      skills: parseSkillsString(value)
+      skillsInput: value
     }))
   }
 
@@ -61,7 +60,13 @@ export default function AssessmentFormPage() {
       setFormData(prev => ({
         ...prev,
         skills: newSkills,
-        skillsInput: skillsArrayToString(newSkills)
+        skillsInput: '' // Clear the input after adding
+      }))
+    } else if (trimmedSkill) {
+      // Clear input even if skill already exists
+      setFormData(prev => ({
+        ...prev,
+        skillsInput: ''
       }))
     }
   }
@@ -70,19 +75,25 @@ export default function AssessmentFormPage() {
     const newSkills = formData.skills.filter(skill => skill !== skillToRemove)
     setFormData(prev => ({
       ...prev,
-      skills: newSkills,
-      skillsInput: skillsArrayToString(newSkills)
+      skills: newSkills
     }))
   }
 
   const handleSkillsKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
-      const input = e.currentTarget.value.trim()
+      const input = formData.skillsInput.trim()
       if (input) {
         addSkillTag(input)
-        e.currentTarget.value = ''
       }
+    }
+  }
+
+  // Handle adding skill when input loses focus (optional enhancement)
+  const handleSkillsBlur = () => {
+    const input = formData.skillsInput.trim()
+    if (input) {
+      addSkillTag(input)
     }
   }
 
@@ -110,6 +121,13 @@ export default function AssessmentFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Add any remaining text in skillsInput as a skill before validating
+    if (formData.skillsInput.trim()) {
+      addSkillTag(formData.skillsInput.trim())
+      // Wait a bit for state to update
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
     
     const validation = validateForm()
     if (!validation.isValid) {
@@ -140,7 +158,7 @@ export default function AssessmentFormPage() {
       // Redirect to results page with prediction data
       const params = new URLSearchParams({
         jobTitle: formData.jobTitle,
-        skills: formData.skillsInput,
+        skills: formData.skills.join(', '),
         experience: formData.experience,
         industry: formData.industry,
         concerns: formData.concerns,
@@ -262,6 +280,7 @@ export default function AssessmentFormPage() {
                     value={formData.skillsInput}
                     onChange={(e) => handleSkillsInputChange(e.target.value)}
                     onKeyDown={handleSkillsKeyPress}
+                    onBlur={handleSkillsBlur}
                     className="h-12 text-base bg-white dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500"
                     aria-describedby="skills-help"
                   />
