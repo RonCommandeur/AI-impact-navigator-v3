@@ -91,6 +91,7 @@ const mockContributions: Contribution[] = [
     content: 'Prompt engineering is becoming an essential skill. In this guide, I\'ll walk you through the fundamentals, common mistakes to avoid, and advanced techniques that professionals use...',
     category: 'Tutorial',
     votes: 18,
+    nft_id: '654321',
     created_at: '2025-01-14T15:30:00Z',
     updated_at: '2025-01-14T15:30:00Z',
     author_email: 'mike@example.com',
@@ -131,6 +132,7 @@ const mockContributions: Contribution[] = [
     content: 'I started a content creation business using AI tools and it\'s now generating $5k/month. Here\'s exactly how I did it and what tools I used...',
     category: 'Business',
     votes: 31,
+    nft_id: '456789',
     created_at: '2025-01-12T14:20:00Z',
     updated_at: '2025-01-12T14:20:00Z',
     author_email: 'emma@example.com',
@@ -138,6 +140,376 @@ const mockContributions: Contribution[] = [
     comments_count: 25,
     user_has_saved: true,
     comments: []
+  },
+  // NEW ENTRIES START HERE
+  {
+    id: '5',
+    auth_user_id: 'user5',
+    title: 'From Traditional Marketing to AI-First Strategy: 6 Month Update',
+    content: 'Six months ago, I was skeptical about AI in marketing. Today, my campaigns are performing 240% better and I\'m working half the hours. Here\'s my complete transformation journey, including the tools that made the difference, mistakes I made, and why traditional marketers need to embrace this shift now...',
+    category: 'Experience',
+    votes: 42,
+    nft_id: '987654',
+    created_at: '2025-01-11T08:45:00Z',
+    updated_at: '2025-01-11T08:45:00Z',
+    author_email: 'priya@example.com',
+    user_has_voted: false,
+    comments_count: 18,
+    user_has_saved: true,
+    comments: [
+      {
+        id: 'c4',
+        author: 'David Kim',
+        content: 'Amazing results! Which AI tools did you find most effective for campaign optimization?',
+        created_at: '2025-01-11T09:20:00Z',
+        likes: 12,
+        user_has_liked: false
+      },
+      {
+        id: 'c5',
+        author: 'Lisa Zhang',
+        content: 'This gives me hope! I\'m in traditional marketing and feeling overwhelmed by AI. Your story is inspiring.',
+        created_at: '2025-01-11T10:15:00Z',
+        likes: 9,
+        user_has_liked: true
+      },
+      {
+        id: 'c6',
+        author: 'Marcus Thompson',
+        content: '240% improvement sounds too good to be true. Can you share some specific metrics?',
+        created_at: '2025-01-11T11:30:00Z',
+        likes: 3,
+        user_has_liked: false
+      }
+    ]
+  },
+  {
+    id: '6',
+    auth_user_id: 'user6',
+    title: 'Step-by-Step: Automating Your Email Workflows with Claude',
+    content: 'Tired of spending hours on email management? I\'ll show you exactly how to set up Claude to handle 80% of your email tasks. This tutorial covers email sorting, response drafting, calendar scheduling, and follow-up automation. Includes templates and prompts you can copy-paste...',
+    category: 'Tutorial',
+    votes: 15,
+    nft_id: '345678',
+    created_at: '2025-01-10T16:30:00Z',
+    updated_at: '2025-01-10T16:30:00Z',
+    author_email: 'carlos@example.com',
+    user_has_voted: true,
+    comments_count: 22,
+    user_has_saved: false,
+    comments: [
+      {
+        id: 'c7',
+        author: 'Jennifer Park',
+        content: 'This is a game-changer! Implemented the email sorting system and already saving 2 hours daily.',
+        created_at: '2025-01-10T17:15:00Z',
+        likes: 18,
+        user_has_liked: true
+      },
+      {
+        id: 'c8',
+        author: 'Roberto Silva',
+        content: 'Love the step-by-step approach. Perfect for someone like me who\'s new to AI automation.',
+        created_at: '2025-01-10T18:45:00Z',
+        likes: 7,
+        user_has_liked: false
+      }
+    ]
+  },
+  {
+    id: '7',
+    auth_user_id: 'user7',
+    title: 'My First AI Freelance Client Paid Me $12K for a One-Week Project',
+    content: 'I\'ve been freelancing for 3 years, but adding AI services to my offerings changed everything. Last month, a client paid me $12,000 for a project that took one week using AI tools. Here\'s how I positioned myself, what services I offered, and the exact tools I used to deliver incredible results...',
+    category: 'Business',
+    votes: 67,
+    nft_id: '234567',
+    created_at: '2025-01-09T12:00:00Z',
+    updated_at: '2025-01-09T12:00:00Z',
+    author_email: 'taylor@example.com',
+    user_has_voted: false,
+    comments_count: 34,
+    user_has_saved: true,
+    comments: [
+      {
+        id: 'c9',
+        author: 'Amanda Foster',
+        content: 'Incredible! What type of project was it? I\'m looking to add AI services to my consulting.',
+        created_at: '2025-01-09T13:20:00Z',
+        likes: 23,
+        user_has_liked: false
+      },
+      {
+        id: 'c10',
+        author: 'Kevin Wu',
+        content: 'This is motivating! I\'ve been hesitant to charge premium rates for AI work, but this shows it\'s possible.',
+        created_at: '2025-01-09T14:10:00Z',
+        likes: 16,
+        user_has_liked: true
+      },
+      {
+        id: 'c11',
+        author: 'Nina Petrov',
+        content: 'Amazing story! Did you have to learn new skills specifically for this project?',
+        created_at: '2025-01-09T15:45:00Z',
+        likes: 8,
+        user_has_liked: false
+      }
+    ]
+  },
+  {
+    id: '8',
+    auth_user_id: 'user8',
+    title: 'The Ethics of AI in Hiring: Where Do We Draw the Line?',
+    content: 'As an HR professional, I\'m seeing more companies use AI for resume screening and candidate evaluation. While it\'s efficient, I\'m concerned about bias and fairness. Where should we draw ethical lines? What are your thoughts on AI making decisions about people\'s careers?',
+    category: 'Discussion',
+    votes: 8,
+    created_at: '2025-01-08T19:20:00Z',
+    updated_at: '2025-01-08T19:20:00Z',
+    author_email: 'rachel@example.com',
+    user_has_voted: false,
+    comments_count: 16,
+    user_has_saved: false,
+    comments: [
+      {
+        id: 'c12',
+        author: 'James Parker',
+        content: 'Great question! I think transparency is key - candidates should know when AI is involved in the process.',
+        created_at: '2025-01-08T20:00:00Z',
+        likes: 11,
+        user_has_liked: true
+      },
+      {
+        id: 'c13',
+        author: 'Maria Gonzalez',
+        content: 'AI can help reduce human bias, but only if it\'s trained on diverse, representative data.',
+        created_at: '2025-01-08T21:30:00Z',
+        likes: 14,
+        user_has_liked: false
+      },
+      {
+        id: 'c14',
+        author: 'Thomas Liu',
+        content: 'I was rejected by an AI system last month. Never got to speak to a human. That felt dehumanizing.',
+        created_at: '2025-01-09T08:15:00Z',
+        likes: 19,
+        user_has_liked: true
+      }
+    ]
+  },
+  {
+    id: '9',
+    auth_user_id: 'user9',
+    title: 'My Biggest AI Learning Mistakes (And What I Wish I Knew)',
+    content: 'After 18 months of learning AI tools, I\'ve made some expensive mistakes. Spent $2,000 on courses I didn\'t need, wasted months on outdated tools, and nearly burned out trying to learn everything at once. Here are the 7 biggest mistakes I made and how you can avoid them...',
+    category: 'Experience',
+    votes: 29,
+    nft_id: '876543',
+    created_at: '2025-01-07T14:15:00Z',
+    updated_at: '2025-01-07T14:15:00Z',
+    author_email: 'jordan@example.com',
+    user_has_voted: true,
+    comments_count: 21,
+    user_has_saved: true,
+    comments: [
+      {
+        id: 'c15',
+        author: 'Sophie Anderson',
+        content: 'Thank you for being honest about the struggles! Most people only share their wins.',
+        created_at: '2025-01-07T15:30:00Z',
+        likes: 25,
+        user_has_liked: true
+      },
+      {
+        id: 'c16',
+        author: 'Michael Brown',
+        content: 'I made similar mistakes with courses. Wish I had seen this post 6 months ago!',
+        created_at: '2025-01-07T16:45:00Z',
+        likes: 12,
+        user_has_liked: false
+      }
+    ]
+  },
+  {
+    id: '10',
+    auth_user_id: 'user10',
+    title: 'Building AI Workflows for Small Business: Complete Tutorial',
+    content: 'Small businesses can benefit hugely from AI, but most tutorials focus on enterprise solutions. I\'ll show you how to build practical AI workflows for businesses with 5-50 employees. Covers customer service automation, inventory management, social media scheduling, and basic data analysis. All using free or low-cost tools...',
+    category: 'Tutorial',
+    votes: 35,
+    nft_id: '765432',
+    created_at: '2025-01-06T10:30:00Z',
+    updated_at: '2025-01-06T10:30:00Z',
+    author_email: 'sam@example.com',
+    user_has_voted: false,
+    comments_count: 14,
+    user_has_saved: true,
+    comments: [
+      {
+        id: 'c17',
+        author: 'Linda Chen',
+        content: 'Finally, something for small businesses! Most AI content is aimed at big corporations.',
+        created_at: '2025-01-06T11:45:00Z',
+        likes: 20,
+        user_has_liked: true
+      },
+      {
+        id: 'c18',
+        author: 'Paul Martinez',
+        content: 'Implementing the customer service workflow next week. Thanks for the detailed guide!',
+        created_at: '2025-01-06T13:20:00Z',
+        likes: 8,
+        user_has_liked: false
+      }
+    ]
+  },
+  {
+    id: '11',
+    auth_user_id: 'user11',
+    title: 'Client Reactions to AI: From Skeptical to "How Did We Live Without This?"',
+    content: 'As a consultant, I was nervous about telling clients I use AI tools. But their reactions have been incredible! From initial skepticism to requesting more AI-powered solutions, here\'s how I introduced AI to conservative clients and won them over. Includes scripts, case studies, and ROI metrics that convinced them...',
+    category: 'Business',
+    votes: 22,
+    nft_id: '654987',
+    created_at: '2025-01-05T09:45:00Z',
+    updated_at: '2025-01-05T09:45:00Z',
+    author_email: 'diana@example.com',
+    user_has_voted: false,
+    comments_count: 19,
+    user_has_saved: false,
+    comments: [
+      {
+        id: 'c19',
+        author: 'Steven Lee',
+        content: 'This is so helpful! I\'ve been hiding my AI usage from clients out of fear.',
+        created_at: '2025-01-05T11:00:00Z',
+        likes: 15,
+        user_has_liked: true
+      },
+      {
+        id: 'c20',
+        author: 'Grace Williams',
+        content: 'The ROI metrics section is gold. Exactly what I need to convince my traditional clients.',
+        created_at: '2025-01-05T12:30:00Z',
+        likes: 11,
+        user_has_liked: false
+      }
+    ]
+  },
+  {
+    id: '12',
+    auth_user_id: 'user12',
+    title: 'The Future of Remote Work: AI as Your Perfect Colleague',
+    content: 'Working remotely with AI assistants has completely changed my perspective on collaboration. AI doesn\'t replace human colleagues, it enhances them. Here\'s my vision for the future of remote work and how AI will make distributed teams more effective than ever before...',
+    category: 'Discussion',
+    votes: 14,
+    nft_id: '321654',
+    created_at: '2025-01-04T16:00:00Z',
+    updated_at: '2025-01-04T16:00:00Z',
+    author_email: 'alex.future@example.com',
+    user_has_voted: true,
+    comments_count: 28,
+    user_has_saved: false,
+    comments: [
+      {
+        id: 'c21',
+        author: 'Maya Patel',
+        content: 'Love this perspective! AI as a colleague, not a competitor. That\'s the mindset shift we need.',
+        created_at: '2025-01-04T17:15:00Z',
+        likes: 22,
+        user_has_liked: true
+      },
+      {
+        id: 'c22',
+        author: 'Chris Taylor',
+        content: 'Interesting points about distributed teams. How do you handle AI hallucinations in team settings?',
+        created_at: '2025-01-04T18:45:00Z',
+        likes: 7,
+        user_has_liked: false
+      },
+      {
+        id: 'c23',
+        author: 'Elena Rossi',
+        content: 'The section about AI improving async communication really resonates with my experience.',
+        created_at: '2025-01-04T19:30:00Z',
+        likes: 13,
+        user_has_liked: true
+      }
+    ]
+  },
+  {
+    id: '13',
+    auth_user_id: 'user13',
+    title: 'How Our Team Went from AI-Resistant to AI-Champions in 3 Months',
+    content: 'Leading change is hard, especially with AI. My team of 12 developers was initially resistant to AI coding tools. Three months later, they\'re champions who can\'t imagine working without them. Here\'s the exact strategy I used to win hearts and minds, including the mistakes that almost derailed everything...',
+    category: 'Experience',
+    votes: 38,
+    nft_id: '159753',
+    created_at: '2025-01-03T13:20:00Z',
+    updated_at: '2025-01-03T13:20:00Z',
+    author_email: 'morgan@example.com',
+    user_has_voted: false,
+    comments_count: 17,
+    user_has_saved: true,
+    comments: [
+      {
+        id: 'c24',
+        author: 'Derek Johnson',
+        content: 'As a team lead, this is incredibly valuable. What was the biggest resistance point?',
+        created_at: '2025-01-03T14:30:00Z',
+        likes: 14,
+        user_has_liked: false
+      },
+      {
+        id: 'c25',
+        author: 'Aria Singh',
+        content: 'The change management approach here is brilliant. Applicable beyond just AI adoption.',
+        created_at: '2025-01-03T15:45:00Z',
+        likes: 18,
+        user_has_liked: true
+      }
+    ]
+  },
+  {
+    id: '14',
+    auth_user_id: 'user14',
+    title: 'Advanced Prompt Engineering: Context Layering & Chain-of-Thought',
+    content: 'Ready to level up your prompt engineering? Most tutorials cover basics, but here are advanced techniques that separate pros from beginners. Context layering, chain-of-thought reasoning, few-shot learning, and prompt chaining. Includes 50+ examples and templates for complex business scenarios...',
+    category: 'Tutorial',
+    votes: 56,
+    nft_id: '456123',
+    created_at: '2025-01-02T11:00:00Z',
+    updated_at: '2025-01-02T11:00:00Z',
+    author_email: 'expert.prompts@example.com',
+    user_has_voted: true,
+    comments_count: 31,
+    user_has_saved: true,
+    comments: [
+      {
+        id: 'c26',
+        author: 'Lucas Rivera',
+        content: 'This is next-level content! The context layering examples are incredibly detailed.',
+        created_at: '2025-01-02T12:15:00Z',
+        likes: 28,
+        user_has_liked: true
+      },
+      {
+        id: 'c27',
+        author: 'Zoe Campbell',
+        content: 'Finally, advanced prompt engineering content! Most tutorials are too basic.',
+        created_at: '2025-01-02T13:30:00Z',
+        likes: 22,
+        user_has_liked: false
+      },
+      {
+        id: 'c28',
+        author: 'Hassan Ahmed',
+        content: 'The chain-of-thought section improved my complex problem-solving prompts by 300%!',
+        created_at: '2025-01-02T14:45:00Z',
+        likes: 35,
+        user_has_liked: true
+      }
+    ]
   }
 ]
 
@@ -476,7 +848,7 @@ export default function CommunityPage() {
                 Demo Mode Active
               </h3>
               <p className="text-gray-600 dark:text-gray-300 mb-4">
-                All community features are unlocked for testing. Vote, save, share, and create your own content!
+                Explore a vibrant community with 14 diverse posts! Vote, save, share, comment, and create your own content.
               </p>
             </CardContent>
           </Card>
